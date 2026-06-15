@@ -110,6 +110,6 @@ Print branch name and PR URL to user.
 ## Edge cases
 
 - No TAK branches exist → N = 1
-- `gh` not installed → skip PR, print command manually
+- `gh` not installed or not authenticated (`gh auth login` needed) → skip PR, print the full `gh pr create` command for user to run manually
 - Title has Polish chars → leave as-is in PR title, strip in slug
 - User provides N explicitly (e.g. "tak7") → use that N
