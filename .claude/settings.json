@@ -1,8 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 mvn compile -q)",
-      "Bash(git pull *)",
+      "Bash(git -C /home/batlin/doc/bear log --oneline -10)",
+      "Bash(git -C /home/batlin/doc/bear show ec4569a --stat)"
     ]
   }
 }
