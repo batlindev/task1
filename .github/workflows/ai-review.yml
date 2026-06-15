@@ -1,0 +1,91 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        required: true
+        type: string
+
+jobs:
+  ai-review:
+    if: github.event.label.name == 'ai-review' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR diff
+        id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR="${{ github.event.pull_request.number || inputs.pr_number }}"
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          gh pr diff "$PR" > pr_diff.txt
+          wc -c pr_diff.txt
+
+      - name: Run AI review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, urllib.request, textwrap
+
+          diff = open("pr_diff.txt").read()
+          if len(diff) > 12000:
+              diff = diff[:12000] + "\n\n[diff truncated]"
+
+          prompt = textwrap.dedent(f"""
+          Review this pull request diff. Be concise and direct.
+
+          Focus only on:
+          - Bugs or logic errors
+          - Security issues
+          - Obvious performance problems
+          - Missing error handling at boundaries
+
+          Skip: style, formatting, naming, test coverage suggestions.
+
+          For each finding write: `path:line — problem. fix.`
+          If no issues found, write: "LGTM — no significant issues."
+
+          Diff:
+          {diff}
+          """).strip()
+
+          payload = json.dumps({
+              "model": "gpt-4o-mini",
+              "max_tokens": 1024,
+              "messages": [{"role": "user", "content": prompt}]
+          }).encode()
+
+          req = urllib.request.Request(
+              "https://models.inference.ai.azure.com/chat/completions",
+              data=payload,
+              headers={
+                  "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+                  "content-type": "application/json",
+              }
+          )
+          with urllib.request.urlopen(req) as resp:
+              body = json.load(resp)
+
+          review = body["choices"][0]["message"]["content"]
+          open("review.txt", "w").write(review)
+          print(review)
+          PYEOF
+
+      - name: Post review comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR="${{ steps.meta.outputs.pr }}"
+          gh pr review "$PR" --comment --body "$(cat review.txt)"
