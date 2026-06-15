@@ -92,20 +92,7 @@ public final class BearPixelTrackerTask extends RobotTask {
         }
     }
 
-    /**
-     * Attack on a point, observing the target pixel like Wasp does — SPACE is
-     * pressed ONLY when the pixel is WHITE (the "attack" signal). In any other
-     * state we just watch and press nothing:
-     * <ul>
-     *   <li>WHITE → press SPACE once (the pixel then changes, so no spamming).</li>
-     *   <li>No monster (probe reads {@code robakColor}) → point cleared, go to
-     *       the next point.</li>
-     *   <li>Otherwise (RED = locked / GREY = idle) → do nothing, keep watching.</li>
-     * </ul>
-     */
     private void attackIfNeeded(int pointNumber) {
-        // Najedz kursorem na cel — to wlasnie hover sprawia, ze pixel bieleje
-        // (jak w Wasp), co jest sygnalem do nacisniecia SPACJI.
         robot.mouseMove(config.targetX, config.targetY);
 
         Color current = robot.getPixelColor(config.targetX, config.targetY);
@@ -124,6 +111,5 @@ public final class BearPixelTrackerTask extends RobotTask {
             seqPos = nextSeqPos;
             step = BearFlowStep.WALK;
         }
-        // else: cel zablokowany (czerwony) lub brak celu (szary) → tylko obserwuje, nic nie naciskam
     }
 }
