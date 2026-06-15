@@ -66,7 +66,7 @@ public final class MainWindow {
         JLabel redThresholdLabel = new JLabel("Red rule (minR,maxG,maxB):");
         JTextField redThresholdField = new JTextField("240,240,0");
         JButton sendIfRedButton = new JButton("SEND TELEGRAM");
-        JButton atrapa = new JButton("gili gili");
+        JButton readMeButton = new JButton("readMe");
         JButton waspButton = new JButton("WASP");
         JButton bearButton = new JButton("BEAR");
 
@@ -143,6 +143,8 @@ public final class MainWindow {
         bearButton.addActionListener(e -> BearWindow.open(
                 telegramTokenField.getText(), telegramChatIdField.getText()));
 
+        readMeButton.addActionListener(e -> ReadMeWindow.open());
+
         frame.add(targetXLabel);
         frame.add(targetXField);
         frame.add(targetYLabel);
@@ -172,7 +174,7 @@ public final class MainWindow {
         frame.add(sendIfRedButton);
         frame.add(waspButton);
         frame.add(bearButton);
-        frame.add(atrapa);
+        frame.add(readMeButton);
         frame.add(check2XLabel);
         frame.add(check2XField);
         frame.add(check2YLabel);

@@ -17,6 +17,11 @@ final class UiUtils {
         panel.add(field);
     }
 
+    static void addRow(JPanel panel, int number, String label, JTextField field) {
+        panel.add(new JLabel(number + ". " + label));
+        panel.add(field);
+    }
+
     static int parseInt(JTextField field) {
         return Integer.parseInt(field.getText().trim());
     }
