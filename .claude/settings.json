@@ -1,8 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git -C /home/batlin/doc/bear log --oneline -10)",
-      "Bash(git -C /home/batlin/doc/bear show ec4569a --stat)"
+      "Bash(mvn *)",
+      "Bash(java *)"
     ]
   }
 }
