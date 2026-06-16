@@ -1,63 +1,43 @@
 package com.example.ui;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.GridLayout;
 import java.awt.Robot;
+import java.io.IOException;
 import java.time.LocalTime;
 
 import javax.swing.JButton;
-import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import javax.swing.JTextField;
 
-import com.example.bot.BotController;
 import com.example.config.AppConfig;
-import com.example.config.BotSettings;
+import com.example.config.AppSettings;
+import com.example.config.TaskPresetStore;
 import com.example.util.RobotActions;
 import com.example.util.TelegramClient;
 
-/** The main "Bot Control" window. */
+/** The main "Bot Control" window. Owns the single preset bar for both windows. */
 public final class MainWindow {
 
     private MainWindow() {
     }
 
     public static void show() {
-        BotController controller = new BotController();
+        AppSettings settings = new AppSettings();
 
         JFrame frame = new JFrame("Bot Control");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(300, 300);
-        frame.setLayout(new GridLayout(20, 2));
+        frame.setSize(320, 340);
+        frame.setLayout(new BorderLayout());
 
-        JLabel targetXLabel = new JLabel("TARGET_X:");
-        JTextField targetXField = new JTextField("1767");
-        JLabel targetYLabel = new JLabel("TARGET_Y:");
-        JTextField targetYField = new JTextField("1492");
-        JLabel healXLabel = new JLabel("HEAL_X:");
-        JTextField healXField = new JTextField("1822");
-        JLabel healYLabel = new JLabel("HEAL_Y:");
-        JTextField healYField = new JTextField("1242");
-        JLabel foodLabel = new JLabel("FOOD:");
-        JTextField foodField = new JTextField("0");
-        JLabel healColorLabel = new JLabel("HEAL_COLOR (R,G,B):");
-        JTextField healColorField = new JTextField("241,97,97");
-        JLabel valuableLootXLabel = new JLabel("Loot X:");
-        JTextField valuableLootXField = new JTextField("0");
-        JLabel valuableLootYLabel = new JLabel("Loot Y:");
-        JTextField valuableLootYField = new JTextField("0");
-        JCheckBox lootCheckBox = new JCheckBox("Track Loot Messages");
-        JLabel check2XLabel = new JLabel("X:");
-        JTextField check2XField = new JTextField("888");
-        JLabel check2YLabel = new JLabel("Y:");
-        JTextField check2YField = new JTextField("2074");
-        JButton check2Button = new JButton("CHECK 2");
+        JPanel panel = new JPanel(new GridLayout(0, 2));
 
-        JButton startButton = new JButton("START");
-        JButton stopButton = new JButton("STOP");
         JButton checkButton = new JButton("CHECK");
-        stopButton.setBackground(Color.RED);
 
         JLabel telegramTokenLabel = new JLabel("Telegram token:");
         JTextField telegramTokenField = new JTextField(AppConfig.telegramToken());
@@ -67,40 +47,20 @@ public final class MainWindow {
         JTextField redThresholdField = new JTextField("240,240,0");
         JButton sendIfRedButton = new JButton("SEND TELEGRAM");
         JButton readMeButton = new JButton("readMe");
-        JButton waspButton = new JButton("WASP");
-        JButton bearButton = new JButton("BEAR");
+        JButton taskButton = new JButton("TASK");
 
-        startButton.addActionListener(e -> {
-            BotSettings settings;
-            try {
-                settings = BotSettings.builder()
-                        .target(UiUtils.parseInt(targetXField), UiUtils.parseInt(targetYField))
-                        .heal(UiUtils.parseInt(healXField), UiUtils.parseInt(healYField),
-                                UiUtils.parseColor(healColorField.getText()))
-                        .food(UiUtils.parseInt(foodField))
-                        .telegramCheck(UiUtils.parseInt(check2XField), UiUtils.parseInt(check2YField),
-                                UiUtils.parseColor(redThresholdField.getText()))
-                        .telegram(telegramTokenField.getText().trim(), telegramChatIdField.getText().trim())
-                        .build();
-            } catch (NumberFormatException ex) {
-                System.out.println("Please enter valid numbers.");
-                return;
-            }
+        JLabel check2XLabel = new JLabel("X:");
+        JTextField check2XField = new JTextField("888");
+        JLabel check2YLabel = new JLabel("Y:");
+        JTextField check2YField = new JTextField("2074");
+        JButton check2Button = new JButton("CHECK 2");
 
-            Runnable onAlert = () -> {
-                controller.stop();
-                System.exit(0);
-            };
-            controller.start(settings, onAlert);
-            startButton.setBackground(Color.GREEN);
-            stopButton.setBackground(null);
-        });
-
-        stopButton.addActionListener(e -> {
-            controller.stop();
-            startButton.setBackground(null);
-            stopButton.setBackground(Color.RED);
-        });
+        // Bind Bot Control inputs into the shared registry so the preset covers them.
+        settings.bind("telegramToken", telegramTokenField);
+        settings.bind("telegramChatId", telegramChatIdField);
+        settings.bind("redThreshold", redThresholdField);
+        settings.bind("check2X", check2XField);
+        settings.bind("check2Y", check2YField);
 
         checkButton.addActionListener(e -> CheckWindow.open());
 
@@ -136,50 +96,90 @@ public final class MainWindow {
             TelegramClient.sendMessage(token, chatId, "wiadomosc");
         });
 
-        waspButton.addActionListener(e -> WaspWindow.open(
-                check2XField.getText(), check2YField.getText(), redThresholdField.getText(),
-                telegramTokenField.getText(), telegramChatIdField.getText()));
-
-        bearButton.addActionListener(e -> BearWindow.open(
-                telegramTokenField.getText(), telegramChatIdField.getText()));
+        taskButton.addActionListener(e -> TaskWindow.open(settings));
 
         readMeButton.addActionListener(e -> ReadMeWindow.open());
 
-        frame.add(targetXLabel);
-        frame.add(targetXField);
-        frame.add(targetYLabel);
-        frame.add(targetYField);
-        frame.add(healXLabel);
-        frame.add(healXField);
-        frame.add(healYLabel);
-        frame.add(healYField);
-        frame.add(foodLabel);
-        frame.add(foodField);
-        frame.add(healColorLabel);
-        frame.add(healColorField);
-        frame.add(valuableLootXLabel);
-        frame.add(valuableLootXField);
-        frame.add(valuableLootYLabel);
-        frame.add(valuableLootYField);
-        frame.add(lootCheckBox);
-        frame.add(startButton);
-        frame.add(stopButton);
-        frame.add(checkButton);
-        frame.add(telegramTokenLabel);
-        frame.add(telegramTokenField);
-        frame.add(telegramChatIdLabel);
-        frame.add(telegramChatIdField);
-        frame.add(redThresholdLabel);
-        frame.add(redThresholdField);
-        frame.add(sendIfRedButton);
-        frame.add(waspButton);
-        frame.add(bearButton);
-        frame.add(readMeButton);
-        frame.add(check2XLabel);
-        frame.add(check2XField);
-        frame.add(check2YLabel);
-        frame.add(check2YField);
-        frame.add(check2Button);
+        panel.add(checkButton);
+        panel.add(new JLabel());
+        panel.add(telegramTokenLabel);
+        panel.add(telegramTokenField);
+        panel.add(telegramChatIdLabel);
+        panel.add(telegramChatIdField);
+        panel.add(redThresholdLabel);
+        panel.add(redThresholdField);
+        panel.add(sendIfRedButton);
+        panel.add(taskButton);
+        panel.add(readMeButton);
+        panel.add(new JLabel());
+        panel.add(check2XLabel);
+        panel.add(check2XField);
+        panel.add(check2YLabel);
+        panel.add(check2YField);
+        panel.add(check2Button);
+
+        // Preset bar: one preset persists every Bot Control + Task Control field.
+        TaskPresetStore store = new TaskPresetStore();
+        JPanel presetPanel = new JPanel(new BorderLayout(4, 0));
+        JComboBox<String> presetBox = new JComboBox<>();
+        JButton saveButton = new JButton("Zapisz");
+        JButton deleteButton = new JButton("Usuń");
+        JPanel presetButtons = new JPanel(new GridLayout(1, 2, 4, 0));
+        presetButtons.add(saveButton);
+        presetButtons.add(deleteButton);
+        presetPanel.add(new JLabel("Presety:"), BorderLayout.WEST);
+        presetPanel.add(presetBox, BorderLayout.CENTER);
+        presetPanel.add(presetButtons, BorderLayout.EAST);
+
+        // Suppress the load-on-select handler while we repopulate the dropdown.
+        final boolean[] loading = new boolean[1];
+        Runnable refreshPresets = () -> {
+            loading[0] = true;
+            presetBox.removeAllItems();
+            presetBox.addItem("");
+            for (String name : store.list()) {
+                presetBox.addItem(name);
+            }
+            loading[0] = false;
+        };
+        refreshPresets.run();
+
+        presetBox.addActionListener(e -> {
+            if (loading[0]) return;
+            Object sel = presetBox.getSelectedItem();
+            if (sel == null || sel.toString().isEmpty()) return;
+            settings.apply(store.load(sel.toString()));
+        });
+
+        saveButton.addActionListener(e -> {
+            String name = JOptionPane.showInputDialog(frame, "Nazwa ustawień:", "Zapisz preset",
+                    JOptionPane.PLAIN_MESSAGE);
+            if (name == null || name.trim().isEmpty()) return;
+            name = name.trim();
+            try {
+                store.save(name, settings.snapshot());
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(frame, "Nie udało się zapisać: " + ex.getMessage(),
+                        "Błąd", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            refreshPresets.run();
+            presetBox.setSelectedItem(name);
+        });
+
+        deleteButton.addActionListener(e -> {
+            Object sel = presetBox.getSelectedItem();
+            if (sel == null || sel.toString().isEmpty()) return;
+            String name = sel.toString();
+            int ans = JOptionPane.showConfirmDialog(frame, "Usunąć preset \"" + name + "\"?",
+                    "Usuń preset", JOptionPane.YES_NO_OPTION);
+            if (ans != JOptionPane.YES_OPTION) return;
+            store.delete(name);
+            refreshPresets.run();
+        });
+
+        frame.add(presetPanel, BorderLayout.NORTH);
+        frame.add(panel, BorderLayout.CENTER);
         frame.setVisible(true);
     }
 }

@@ -5,43 +5,47 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.GridLayout;
 import java.awt.Robot;
-import java.io.IOException;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.swing.JButton;
-import javax.swing.JComboBox;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
-import com.example.bot.bear.BearController;
-import com.example.config.BearConfig;
-import com.example.config.BearPresetStore;
+import com.example.bot.task.TaskController;
+import com.example.config.AppSettings;
+import com.example.config.TaskConfig;
 
 /**
- * The "Bear Control" window: minimap rectangle + the three uniquely-colored
+ * The "Task Control" window: minimap rectangle + the three uniquely-colored
  * patrol marks, plus START/STOP/CLOSE.
+ *
+ * Fields bind into the shared {@link AppSettings} so the single preset bar in
+ * Bot Control persists them. Telegram token / chat_id live only in Bot Control;
+ * this window reads them from the shared registry.
  *
  * Defaults come from analyzing minimap.png (panel inner area in screen coords;
  * player cross anchored at 1806,1177). The patrol order is 1 -> 2 -> 3 -> 2 -> ...
  */
-public final class BearWindow {
+public final class TaskWindow {
 
-    private BearWindow() {
+    private TaskWindow() {
     }
 
-    public static void open(String token, String chatId) {
-        BearController controller = new BearController();
+    public static void open(AppSettings settings) {
+        TaskController controller = new TaskController();
 
-        JFrame frame = new JFrame("Bear Control");
+        JFrame frame = new JFrame("Task Control");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        frame.setSize(520, 760);
+        frame.setSize(520, 720);
         frame.setLayout(new BorderLayout());
 
         JPanel panel = new JPanel(new GridLayout(0, 2));
@@ -87,10 +91,8 @@ public final class BearWindow {
         JTextField butyX = new JTextField("1810");
         JTextField butyY = new JTextField("1391");
         JTextField butyColor = new JTextField("58,61,63");
-        JTextField telegramTokenField = new JTextField(token);
-        JTextField telegramChatIdField = new JTextField(chatId);
 
-        // Stable key -> field registry, used to save/load presets generically.
+        // Stable key -> field registry; bind each into the shared AppSettings.
         Map<String, JTextField> fields = new LinkedHashMap<>();
         fields.put("mapX", mapX);
         fields.put("mapY", mapY);
@@ -134,8 +136,11 @@ public final class BearWindow {
         fields.put("butyX", butyX);
         fields.put("butyY", butyY);
         fields.put("butyColor", butyColor);
-        fields.put("telegramToken", telegramTokenField);
-        fields.put("telegramChatId", telegramChatIdField);
+
+        for (Map.Entry<String, JTextField> e : fields.entrySet()) {
+            settings.bind(e.getKey(), e.getValue());
+        }
+        List<String> taskKeys = new ArrayList<>(fields.keySet());
 
         UiUtils.addRow(panel,  1, "Minimap X (lewy-gorny):", mapX);
         UiUtils.addRow(panel,  1, "Minimap Y (lewy-gorny):", mapY);
@@ -179,19 +184,17 @@ public final class BearWindow {
         UiUtils.addRow(panel, 13, "BUTY X:", butyX);
         UiUtils.addRow(panel, 13, "BUTY Y:", butyY);
         UiUtils.addRow(panel, 13, "BUTY COLOR (R,G,B):", butyColor);
-        UiUtils.addRow(panel, 14, "Telegram token:", telegramTokenField);
-        UiUtils.addRow(panel, 15, "Telegram chat_id:", telegramChatIdField);
 
         JPanel buttonPanel = new JPanel(new GridLayout(1, 3));
-        JButton startButton = new JButton("START BEAR");
-        JButton stopButton = new JButton("STOP BEAR");
+        JButton startButton = new JButton("START TASK");
+        JButton stopButton = new JButton("STOP TASK");
         JButton closeButton = new JButton("CLOSE");
         stopButton.setBackground(Color.RED);
 
         final Thread[] watcherRef = new Thread[1];
 
         startButton.addActionListener(e -> {
-            BearConfig config;
+            TaskConfig config;
             try {
                 int[][] lootTiles = new int[][] {
                         UiUtils.parsePoint(tile1X, tile1Y),
@@ -205,7 +208,9 @@ public final class BearWindow {
                         UiUtils.parseOptionalPoint(tile9X, tile9Y)
                 };
 
-                config = BearConfig.builder()
+                String token = settings.get("telegramToken");
+                String chatId = settings.get("telegramChatId");
+                config = TaskConfig.builder()
                         .minimap(UiUtils.parseInt(mapX), UiUtils.parseInt(mapY),
                                 UiUtils.parseInt(mapW), UiUtils.parseInt(mapH))
                         .colorTolerance(UiUtils.parseInt(tolerance))
@@ -222,10 +227,11 @@ public final class BearWindow {
                         .lootTiles(lootTiles)
                         .heal(UiUtils.parseInt(healX), UiUtils.parseInt(healY),
                                 UiUtils.parseColor(healColor.getText()))
-                        .telegram(telegramTokenField.getText().trim(), telegramChatIdField.getText().trim())
+                        .telegram(token == null ? "" : token.trim(),
+                                chatId == null ? "" : chatId.trim())
                         .build();
             } catch (NumberFormatException ex) {
-                System.out.println("Please enter valid BEAR numbers.");
+                System.out.println("Please enter valid TASK numbers.");
                 return;
             }
 
@@ -250,75 +256,15 @@ public final class BearWindow {
         buttonPanel.add(stopButton);
         buttonPanel.add(closeButton);
 
-        // Preset bar: dropdown of saved presets + save/delete.
-        BearPresetStore store = new BearPresetStore();
-        JPanel presetPanel = new JPanel(new BorderLayout(4, 0));
-        JComboBox<String> presetBox = new JComboBox<>();
-        JButton saveButton = new JButton("Zapisz");
-        JButton deleteButton = new JButton("Usuń");
-        JPanel presetButtons = new JPanel(new GridLayout(1, 2, 4, 0));
-        presetButtons.add(saveButton);
-        presetButtons.add(deleteButton);
-        presetPanel.add(new JLabel("Presety:"), BorderLayout.WEST);
-        presetPanel.add(presetBox, BorderLayout.CENTER);
-        presetPanel.add(presetButtons, BorderLayout.EAST);
-
-        // Suppress the load-on-select handler while we repopulate the dropdown.
-        final boolean[] loading = new boolean[1];
-        Runnable refreshPresets = () -> {
-            loading[0] = true;
-            presetBox.removeAllItems();
-            presetBox.addItem("");
-            for (String name : store.list()) {
-                presetBox.addItem(name);
-            }
-            loading[0] = false;
-        };
-        refreshPresets.run();
-
-        presetBox.addActionListener(e -> {
-            if (loading[0]) return;
-            Object sel = presetBox.getSelectedItem();
-            if (sel == null || sel.toString().isEmpty()) return;
-            Map<String, String> values = store.load(sel.toString());
-            for (Map.Entry<String, String> entry : values.entrySet()) {
-                JTextField field = fields.get(entry.getKey());
-                if (field != null) field.setText(entry.getValue());
+        // On close, hand the fields' last values back to the shared cache so the
+        // Bot Control preset still sees them after this window is gone.
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                settings.unbind(taskKeys);
             }
         });
 
-        saveButton.addActionListener(e -> {
-            String name = JOptionPane.showInputDialog(frame, "Nazwa ustawień:", "Zapisz preset",
-                    JOptionPane.PLAIN_MESSAGE);
-            if (name == null || name.trim().isEmpty()) return;
-            name = name.trim();
-            Map<String, String> values = new LinkedHashMap<>();
-            for (Map.Entry<String, JTextField> entry : fields.entrySet()) {
-                values.put(entry.getKey(), entry.getValue().getText());
-            }
-            try {
-                store.save(name, values);
-            } catch (IOException ex) {
-                JOptionPane.showMessageDialog(frame, "Nie udało się zapisać: " + ex.getMessage(),
-                        "Błąd", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            refreshPresets.run();
-            presetBox.setSelectedItem(name);
-        });
-
-        deleteButton.addActionListener(e -> {
-            Object sel = presetBox.getSelectedItem();
-            if (sel == null || sel.toString().isEmpty()) return;
-            String name = sel.toString();
-            int ans = JOptionPane.showConfirmDialog(frame, "Usunąć preset \"" + name + "\"?",
-                    "Usuń preset", JOptionPane.YES_NO_OPTION);
-            if (ans != JOptionPane.YES_OPTION) return;
-            store.delete(name);
-            refreshPresets.run();
-        });
-
-        frame.add(presetPanel, BorderLayout.NORTH);
         frame.add(new JScrollPane(panel), BorderLayout.CENTER);
         frame.add(buttonPanel, BorderLayout.SOUTH);
         frame.setVisible(true);

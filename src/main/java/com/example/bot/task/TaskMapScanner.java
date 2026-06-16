@@ -1,4 +1,4 @@
-package com.example.bot.bear;
+package com.example.bot.task;
 
 import java.awt.Color;
 import java.awt.Point;
@@ -12,13 +12,13 @@ import java.awt.image.BufferedImage;
  * One {@link Robot#createScreenCapture} per scan (cheap) instead of hundreds of
  * {@link Robot#getPixelColor} calls (each of which grabs the whole screen).
  */
-public final class BearMapScanner {
+public final class TaskMapScanner {
 
     private final Robot robot;
     private final Rectangle area;
     private final int tolerance;
 
-    public BearMapScanner(Robot robot, int x, int y, int w, int h, int tolerance) {
+    public TaskMapScanner(Robot robot, int x, int y, int w, int h, int tolerance) {
         this.robot = robot;
         this.area = new Rectangle(x, y, w, h);
         this.tolerance = tolerance;

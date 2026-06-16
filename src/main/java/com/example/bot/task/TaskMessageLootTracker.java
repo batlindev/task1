@@ -1,9 +1,9 @@
-package com.example.bot.bear;
+package com.example.bot.task;
 
 import java.awt.Color;
 import java.awt.event.InputEvent;
 
-import com.example.config.BearConfig;
+import com.example.config.TaskConfig;
 import com.example.util.RobotActions;
 import com.example.util.RobotTask;
 import com.example.util.TelegramClient;
@@ -13,15 +13,15 @@ import com.example.util.TelegramClient;
  * up it right-clicks every loot tile (if any) and notifies Telegram.
  *
  * Difference from Wasp: it only scans while on a point or briefly after a kill
- * (see {@link BearPixelTrackerTask#shouldScanLoot()}) and the Telegram text is
- * "bear paw".
+ * (see {@link TaskPixelTrackerTask#shouldScanLoot()}) and the Telegram text is
+ * "task paw".
  */
-public class BearMessageLootTracker extends RobotTask {
+public class TaskMessageLootTracker extends RobotTask {
 
-    private final BearConfig config;
-    private final BearPixelTrackerTask tracker;
+    private final TaskConfig config;
+    private final TaskPixelTrackerTask tracker;
 
-    public BearMessageLootTracker(BearConfig config, BearPixelTrackerTask tracker) {
+    public TaskMessageLootTracker(TaskConfig config, TaskPixelTrackerTask tracker) {
         this.config = config;
         this.tracker = tracker;
     }
@@ -33,7 +33,7 @@ public class BearMessageLootTracker extends RobotTask {
         }
 
         Color current = robot.getPixelColor(config.lootX, config.lootY);
-        System.out.println("BEAR loot " + current);
+        System.out.println("TASK loot " + current);
 
         if (current.equals(config.lootColor)) {
             if (config.lootTiles != null) {
@@ -48,8 +48,8 @@ public class BearMessageLootTracker extends RobotTask {
                     RobotActions.sleep(i < 2 ? 400 : 100);
                 }
             }
-            System.out.println("BEAR zbieram loota");
-            TelegramClient.sendMessage(config.telegramToken, config.telegramChatId, "bear paw");
+            System.out.println("TASK zbieram loota");
+            TelegramClient.sendMessage(config.telegramToken, config.telegramChatId, "task paw");
         }
     }
 }
