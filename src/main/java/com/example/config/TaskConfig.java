@@ -3,9 +3,9 @@ package com.example.config;
 import java.awt.Color;
 
 /**
- * Configuration for the Bear patrol routine.
+ * Configuration for the Task patrol routine.
  *
- * The bear walks between three player-placed minimap marks, each identified by
+ * The task walks between three player-placed minimap marks, each identified by
  * a unique color, in a ping-pong order (1 -> 2 -> 3 -> 2 -> 1 -> ...).
  *
  * The minimap panel is fixed on screen while the map scrolls underneath it, so
@@ -15,7 +15,7 @@ import java.awt.Color;
  *
  * Built through {@link Builder} to mirror {@link WaspConfig}.
  */
-public final class BearConfig {
+public final class TaskConfig {
 
     /** Screen rectangle of the minimap's inner (scrolling) area. */
     public final int mapX;
@@ -61,7 +61,7 @@ public final class BearConfig {
     public final String telegramToken;
     public final String telegramChatId;
 
-    private BearConfig(Builder b) {
+    private TaskConfig(Builder b) {
         this.mapX = b.mapX;
         this.mapY = b.mapY;
         this.mapW = b.mapW;
@@ -147,8 +147,8 @@ public final class BearConfig {
             this.telegramToken = token; this.telegramChatId = chatId; return this;
         }
 
-        public BearConfig build() {
-            return new BearConfig(this);
+        public TaskConfig build() {
+            return new TaskConfig(this);
         }
     }
 }

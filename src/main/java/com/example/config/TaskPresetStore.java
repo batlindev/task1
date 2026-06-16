@@ -14,25 +14,25 @@ import java.util.Properties;
 import java.util.TreeSet;
 
 /**
- * Disk-backed store for Bear panel presets.
+ * Disk-backed store for Task panel presets.
  *
- * Each preset is a single {@code .properties} file inside {@code ./bear-presets/}
+ * Each preset is a single {@code .properties} file inside {@code ./task-presets/}
  * (relative to the working directory, which {@code run.sh} pins to the project
  * root). The filename, minus the {@code .properties} suffix, is the preset name.
  * Values are the raw text of every input field, so presets survive across
  * close/reopen with no rebuild.
  */
-public final class BearPresetStore {
+public final class TaskPresetStore {
 
     private static final String EXT = ".properties";
 
     private final Path dir;
 
-    public BearPresetStore() {
-        this(Path.of("bear-presets"));
+    public TaskPresetStore() {
+        this(Path.of("task-presets"));
     }
 
-    public BearPresetStore(Path dir) {
+    public TaskPresetStore(Path dir) {
         this.dir = dir;
     }
 
@@ -63,7 +63,7 @@ public final class BearPresetStore {
             props.setProperty(e.getKey(), e.getValue() == null ? "" : e.getValue());
         }
         try (OutputStream out = Files.newOutputStream(fileFor(name))) {
-            props.store(out, "Bear preset: " + name);
+            props.store(out, "Task preset: " + name);
         }
     }
 
