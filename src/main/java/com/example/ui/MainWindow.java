@@ -15,8 +15,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
-import com.example.config.AppConfig;
 import com.example.config.AppSettings;
+import com.example.config.DefaultSettings;
 import com.example.config.TaskPresetStore;
 import com.example.util.RobotActions;
 import com.example.util.TelegramClient;
@@ -40,25 +40,20 @@ public final class MainWindow {
         JButton checkButton = new JButton("CHECK");
 
         JLabel telegramTokenLabel = new JLabel("Telegram token:");
-        JTextField telegramTokenField = new JTextField(AppConfig.telegramToken());
+        JTextField telegramTokenField = new JTextField(DefaultSettings.get("telegramToken"));
         JLabel telegramChatIdLabel = new JLabel("Telegram chat_id:");
-        JTextField telegramChatIdField = new JTextField(AppConfig.telegramChatId());
-        JLabel redThresholdLabel = new JLabel("Red rule (minR,maxG,maxB):");
-        JTextField redThresholdField = new JTextField("240,240,0");
+        JTextField telegramChatIdField = new JTextField(DefaultSettings.get("telegramChatId"));
         JButton sendIfRedButton = new JButton("SEND TELEGRAM");
         JButton readMeButton = new JButton("readMe");
         JButton taskButton = new JButton("TASK");
 
-        JLabel check2XLabel = new JLabel("X:");
-        JTextField check2XField = new JTextField("888");
-        JLabel check2YLabel = new JLabel("Y:");
-        JTextField check2YField = new JTextField("2074");
+        JTextField check2XField = new PlaceholderTextField("X", DefaultSettings.get("check2X"));
+        JTextField check2YField = new PlaceholderTextField("Y", DefaultSettings.get("check2Y"));
         JButton check2Button = new JButton("CHECK 2");
 
         // Bind Bot Control inputs into the shared registry so the preset covers them.
         settings.bind("telegramToken", telegramTokenField);
         settings.bind("telegramChatId", telegramChatIdField);
-        settings.bind("redThreshold", redThresholdField);
         settings.bind("check2X", check2XField);
         settings.bind("check2Y", check2YField);
 
@@ -100,23 +95,18 @@ public final class MainWindow {
 
         readMeButton.addActionListener(e -> ReadMeWindow.open());
 
-        panel.add(checkButton);
-        panel.add(new JLabel());
         panel.add(telegramTokenLabel);
         panel.add(telegramTokenField);
         panel.add(telegramChatIdLabel);
         panel.add(telegramChatIdField);
-        panel.add(redThresholdLabel);
-        panel.add(redThresholdField);
         panel.add(sendIfRedButton);
         panel.add(taskButton);
+        panel.add(checkButton);
         panel.add(readMeButton);
-        panel.add(new JLabel());
-        panel.add(check2XLabel);
         panel.add(check2XField);
-        panel.add(check2YLabel);
         panel.add(check2YField);
         panel.add(check2Button);
+        panel.add(new JLabel());
 
         // Preset bar: one preset persists every Bot Control + Task Control field.
         TaskPresetStore store = new TaskPresetStore();

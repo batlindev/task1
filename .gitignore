@@ -37,9 +37,6 @@ Thumbs.db
 oracleJdk*/
 jdk*/
 
-# Local secrets (the .example template stays tracked)
-config.properties
-**/config.properties
-
-# Local Bear panel presets (machine-specific screen coords)
+# Local panel presets (machine-specific screen coords; may hold Telegram secrets)
 bear-presets/
+task-presets/

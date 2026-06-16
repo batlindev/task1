@@ -22,7 +22,9 @@ Java 17, no external dependencies — pure Java SE + Swing. No test suite.
 
 ## Configuration
 
-Copy `src/main/resources/config.properties.example` → `config.properties` (next to the jar, or in `src/main/resources/`) and fill in Telegram credentials. `AppConfig` tries three sources in order: `./config.properties` (working dir) → classpath `config.properties` → classpath `config.properties.example`.
+Telegram token and chat_id are typed into the two inputs in the Bot Control panel — they start empty and are not read from any file. Save them in a preset (preset bar) to persist across runs.
+
+Field defaults for both panels live in `src/main/resources/defaults.properties`, loaded by `DefaultSettings` (working-dir `./defaults.properties` overrides the classpath copy). Empty value = empty field.
 
 ## Architecture
 
@@ -30,31 +32,31 @@ Copy `src/main/resources/config.properties.example` → `config.properties` (nex
 
 `Main` → `SwingUtilities.invokeLater(MainWindow::show)`. The UI runs on the EDT. Bot tasks run on a dedicated `ScheduledExecutorService.newSingleThreadScheduledExecutor()` — all tasks for one bot share a single background thread, so no locking is needed between tasks. The `guard()` wrapper in each Controller catches any `Throwable` and logs it instead of letting it silently kill the schedule.
 
-### Bot structure (Bear and Wasp are parallel)
+### Bot structure (Task and the generic bot are parallel)
 
 Each bot follows the same pattern:
 
-| Layer | Bear | Wasp | Generic bot |
-|---|---|---|---|
-| Controller | `BearController` | `WaspController` | `BotController` |
-| Config | `BearConfig` (Builder) | `WaspConfig` (Builder) | `BotSettings` (Builder) |
-| Main task | `BearPixelTrackerTask` | `WaspPixelTrackerTask` | `PixelTrackerTask` |
-| Heal | `BearHealTask` | `WaspHealTask` | `HealTask` |
-| Loot | `BearMessageLootTracker` | `WaspMessageLootTracker` | — |
-| UI Window | `BearWindow` | `WaspWindow` | `MainWindow` |
+| Layer | Task | Generic bot |
+|---|---|---|
+| Controller | `TaskController` | `BotController` |
+| Config | `TaskConfig` (Builder) | `BotSettings` (Builder) |
+| Main task | `TaskPixelTrackerTask` | `PixelTrackerTask` |
+| Heal | `TaskHealTask` | `HealTask` |
+| Loot | `TaskMessageLootTracker` | — |
+| UI Window | `TaskWindow` | `MainWindow` |
 
 Config objects are **immutable** — captured once when START is pressed and passed into the controller. Never mutate them after creation.
 
-### Bear state machine (the most complex bot)
+### Task state machine (the most complex bot)
 
-`BearPixelTrackerTask` is a two-state machine (`WALK` → `ATTACK` → `WALK`):
+`TaskPixelTrackerTask` is a two-state machine (`WALK` → `ATTACK` → `WALK`):
 
-- **WALK**: `BearMapScanner` takes one `Robot.createScreenCapture` of the minimap rect and finds the centroid of pixels matching the current target color (with ±`colorTolerance` per channel). If the centroid is within `arriveThreshold` pixels of the minimap center (= player position), switches to `ATTACK`. Otherwise clicks the centroid to trigger auto-walk.
+- **WALK**: `TaskMapScanner` takes one `Robot.createScreenCapture` of the minimap rect and finds the centroid of pixels matching the current target color (with ±`colorTolerance` per channel). If the centroid is within `arriveThreshold` pixels of the minimap center (= player position), switches to `ATTACK`. Otherwise clicks the centroid to trigger auto-walk.
 - **ATTACK**: Hovers mouse over `targetX/Y`. Pixel turns `WHITE` → press SPACE once. Pixel reads `robakColor` → no monster, advance patrol sequence and switch back to `WALK`.
 
 Patrol order is a ping-pong: `SEQUENCE = {0, 1, 2, 1}` (index into `config.points[3]`).
 
-**Loot grace window**: after killing a monster the loot message appears slightly after the kill. `lootScanUntilMs` keeps `BearMessageLootTracker.shouldScanLoot()` returning `true` for 4 seconds after the tracker transitions back to WALK, so the loot message isn't missed.
+**Loot grace window**: after killing a monster the loot message appears slightly after the kill. `lootScanUntilMs` keeps `TaskMessageLootTracker.shouldScanLoot()` returning `true` for 4 seconds after the tracker transitions back to WALK, so the loot message isn't missed.
 
 ### Shared utilities
 
@@ -65,7 +67,7 @@ Patrol order is a ping-pong: `SEQUENCE = {0, 1, 2, 1}` (index into `config.point
 
 ### Adding a new bot
 
-1. Create `com.example.config.XxxConfig` with an inner `Builder` (copy `BearConfig` as template).
+1. Create `com.example.config.XxxConfig` with an inner `Builder` (copy `TaskConfig` as template).
 2. Create `com.example.bot.xxx/` package with `XxxController`, `XxxPixelTrackerTask`, `XxxHealTask`, `XxxMessageLootTracker`.
 3. `XxxController.start()` must use `newSingleThreadScheduledExecutor` + `scheduleWithFixedDelay` + `guard()`.
 4. Create `com.example.ui.XxxWindow` and wire a button for it in `MainWindow`.

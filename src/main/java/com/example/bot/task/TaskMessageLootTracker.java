@@ -9,10 +9,10 @@ import com.example.util.RobotTask;
 import com.example.util.TelegramClient;
 
 /**
- * Analogous to {@code WaspMessageLootTracker}: when the loot-message pixel lights
- * up it right-clicks every loot tile (if any) and notifies Telegram.
+ * When the loot-message pixel lights up it right-clicks every loot tile (if any)
+ * and notifies Telegram.
  *
- * Difference from Wasp: it only scans while on a point or briefly after a kill
+ * It only scans while on a point or briefly after a kill
  * (see {@link TaskPixelTrackerTask#shouldScanLoot()}) and the Telegram text is
  * "task paw".
  */

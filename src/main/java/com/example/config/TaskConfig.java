@@ -13,7 +13,7 @@ import java.awt.Color;
  * {@code (mapX, mapY, mapW, mapH)} rectangle. A mark's pixel position inside
  * that rectangle therefore tells us, every tick, in which direction it lies.
  *
- * Built through {@link Builder} to mirror {@link WaspConfig}.
+ * Built through {@link Builder}.
  */
 public final class TaskConfig {
 

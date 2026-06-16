@@ -1,7 +1,11 @@
 package com.example.ui;
 
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.FlowLayout;
 
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
@@ -20,6 +24,50 @@ final class UiUtils {
     static void addRow(JPanel panel, int number, String label, JTextField field) {
         panel.add(new JLabel(number + ". " + label));
         panel.add(field);
+    }
+
+    /** Narrow text field for coordinates / small numbers (≤4 digits). */
+    static JTextField num(String value) {
+        return new JTextField(value == null ? "" : value, 4);
+    }
+
+    /** Wider text field for "R,G,B" color triplets. */
+    static JTextField rgb(String value) {
+        return new JTextField(value == null ? "" : value, 8);
+    }
+
+    /** Vertical container that stacks category panels top-to-bottom. */
+    static JPanel verticalBox() {
+        JPanel p = new JPanel();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        return p;
+    }
+
+    /** A titled category panel; add rows built with {@link #row}. */
+    static JPanel category(String title) {
+        JPanel p = new JPanel();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        p.setBorder(BorderFactory.createTitledBorder(title));
+        p.setAlignmentX(Component.LEFT_ALIGNMENT);
+        return p;
+    }
+
+    /**
+     * One left-aligned row. Each {@code String} part becomes a label, each
+     * {@code JTextField} is added at its preferred width (so narrow coord fields
+     * stay narrow and wide RGB fields stay wide).
+     */
+    static JPanel row(Object... parts) {
+        JPanel r = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        r.setAlignmentX(Component.LEFT_ALIGNMENT);
+        for (Object part : parts) {
+            if (part instanceof JTextField field) {
+                r.add(field);
+            } else {
+                r.add(new JLabel(String.valueOf(part)));
+            }
+        }
+        return r;
     }
 
     static int parseInt(JTextField field) {
