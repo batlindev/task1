@@ -40,3 +40,6 @@ jdk*/
 # Local secrets (the .example template stays tracked)
 config.properties
 **/config.properties
+
+# Local Bear panel presets (machine-specific screen coords)
+bear-presets/
