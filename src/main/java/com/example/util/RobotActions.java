@@ -7,8 +7,8 @@ import java.awt.event.KeyEvent;
 import java.time.LocalTime;
 
 /**
- * Small reusable {@link Robot} interactions shared by the normal bot and the
- * Wasp bot, so the duplicated "eat food" / "heal" loops live in one place.
+ * Small reusable {@link Robot} interactions shared across bots, so the
+ * duplicated "eat food" / "heal" loops live in one place.
  */
 public final class RobotActions {
 

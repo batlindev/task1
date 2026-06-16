@@ -22,6 +22,7 @@ import javax.swing.SwingUtilities;
 
 import com.example.bot.task.TaskController;
 import com.example.config.AppSettings;
+import com.example.config.DefaultSettings;
 import com.example.config.TaskConfig;
 
 /**
@@ -48,49 +49,48 @@ public final class TaskWindow {
         frame.setSize(520, 720);
         frame.setLayout(new BorderLayout());
 
-        JPanel panel = new JPanel(new GridLayout(0, 2));
-        JTextField mapX = new JTextField("1753");
-        JTextField mapY = new JTextField("1122");
-        JTextField mapW = new JTextField("107");
-        JTextField mapH = new JTextField("110");
-        JTextField tolerance = new JTextField("10");
-        JTextField arrive = new JTextField("5");
-        JTextField point1Color = new JTextField("1,1,240");      // niebieski (prawo)
-        JTextField point2Color = new JTextField("227,0,15");     // czerwony (lewo od krzyzyka)
-        JTextField point3Color = new JTextField("68,206,87");    // zielony (dol)
-        JTextField targetX = new JTextField("1767");
-        JTextField targetY = new JTextField("1492");
-        JTextField targetColor = new JTextField("255,0,0");
-        JTextField robakX = new JTextField("1759");
-        JTextField robakY = new JTextField("1493");
-        JTextField robakColor = new JTextField("70,70,70");
-        JTextField lootX = new JTextField("923");
-        JTextField lootY = new JTextField("2061");
-        JTextField lootColor = new JTextField("240,180,0");
-        JTextField tile1X = new JTextField("1267");
-        JTextField tile1Y = new JTextField("1373");
-        JTextField tile2X = new JTextField("1267");
-        JTextField tile2Y = new JTextField("1424");
-        JTextField tile3X = new JTextField("1267");
-        JTextField tile3Y = new JTextField("1479");
-        JTextField tile4X = new JTextField("1323");
-        JTextField tile4Y = new JTextField("1373");
-        JTextField tile5X = new JTextField("1323");
-        JTextField tile5Y = new JTextField("1426");
-        JTextField tile6X = new JTextField("1321");
-        JTextField tile6Y = new JTextField("1484");
-        JTextField tile7X = new JTextField("1383");
-        JTextField tile7Y = new JTextField("1370");
-        JTextField tile8X = new JTextField("1383");
-        JTextField tile8Y = new JTextField("1425");
-        JTextField tile9X = new JTextField("1383");
-        JTextField tile9Y = new JTextField("1480");
-        JTextField healX = new JTextField("1822");
-        JTextField healY = new JTextField("1242");
-        JTextField healColor = new JTextField("241,97,97");
-        JTextField butyX = new JTextField("1810");
-        JTextField butyY = new JTextField("1391");
-        JTextField butyColor = new JTextField("58,61,63");
+        JTextField mapX = UiUtils.num(DefaultSettings.get("mapX"));
+        JTextField mapY = UiUtils.num(DefaultSettings.get("mapY"));
+        JTextField mapW = UiUtils.num(DefaultSettings.get("mapW"));
+        JTextField mapH = UiUtils.num(DefaultSettings.get("mapH"));
+        JTextField tolerance = UiUtils.num(DefaultSettings.get("tolerance"));
+        JTextField arrive = UiUtils.num(DefaultSettings.get("arrive"));
+        JTextField point1Color = UiUtils.rgb(DefaultSettings.get("point1Color"));    // niebieski (prawo)
+        JTextField point2Color = UiUtils.rgb(DefaultSettings.get("point2Color"));    // czerwony (lewo od krzyzyka)
+        JTextField point3Color = UiUtils.rgb(DefaultSettings.get("point3Color"));    // zielony (dol)
+        JTextField targetX = UiUtils.num(DefaultSettings.get("targetX"));
+        JTextField targetY = UiUtils.num(DefaultSettings.get("targetY"));
+        JTextField targetColor = UiUtils.rgb(DefaultSettings.get("targetColor"));
+        JTextField robakX = UiUtils.num(DefaultSettings.get("robakX"));
+        JTextField robakY = UiUtils.num(DefaultSettings.get("robakY"));
+        JTextField robakColor = UiUtils.rgb(DefaultSettings.get("robakColor"));
+        JTextField lootX = UiUtils.num(DefaultSettings.get("lootX"));
+        JTextField lootY = UiUtils.num(DefaultSettings.get("lootY"));
+        JTextField lootColor = UiUtils.rgb(DefaultSettings.get("lootColor"));
+        JTextField tile1X = UiUtils.num(DefaultSettings.get("tile1X"));
+        JTextField tile1Y = UiUtils.num(DefaultSettings.get("tile1Y"));
+        JTextField tile2X = UiUtils.num(DefaultSettings.get("tile2X"));
+        JTextField tile2Y = UiUtils.num(DefaultSettings.get("tile2Y"));
+        JTextField tile3X = UiUtils.num(DefaultSettings.get("tile3X"));
+        JTextField tile3Y = UiUtils.num(DefaultSettings.get("tile3Y"));
+        JTextField tile4X = UiUtils.num(DefaultSettings.get("tile4X"));
+        JTextField tile4Y = UiUtils.num(DefaultSettings.get("tile4Y"));
+        JTextField tile5X = UiUtils.num(DefaultSettings.get("tile5X"));
+        JTextField tile5Y = UiUtils.num(DefaultSettings.get("tile5Y"));
+        JTextField tile6X = UiUtils.num(DefaultSettings.get("tile6X"));
+        JTextField tile6Y = UiUtils.num(DefaultSettings.get("tile6Y"));
+        JTextField tile7X = UiUtils.num(DefaultSettings.get("tile7X"));
+        JTextField tile7Y = UiUtils.num(DefaultSettings.get("tile7Y"));
+        JTextField tile8X = UiUtils.num(DefaultSettings.get("tile8X"));
+        JTextField tile8Y = UiUtils.num(DefaultSettings.get("tile8Y"));
+        JTextField tile9X = UiUtils.num(DefaultSettings.get("tile9X"));
+        JTextField tile9Y = UiUtils.num(DefaultSettings.get("tile9Y"));
+        JTextField healX = UiUtils.num(DefaultSettings.get("healX"));
+        JTextField healY = UiUtils.num(DefaultSettings.get("healY"));
+        JTextField healColor = UiUtils.rgb(DefaultSettings.get("healColor"));
+        JTextField ebeX = UiUtils.num(DefaultSettings.get("ebeX"));
+        JTextField ebeY = UiUtils.num(DefaultSettings.get("ebeY"));
+        JTextField ebeColor = UiUtils.rgb(DefaultSettings.get("ebeColor"));
 
         // Stable key -> field registry; bind each into the shared AppSettings.
         Map<String, JTextField> fields = new LinkedHashMap<>();
@@ -133,57 +133,56 @@ public final class TaskWindow {
         fields.put("healX", healX);
         fields.put("healY", healY);
         fields.put("healColor", healColor);
-        fields.put("butyX", butyX);
-        fields.put("butyY", butyY);
-        fields.put("butyColor", butyColor);
+        fields.put("ebeX", ebeX);
+        fields.put("ebeY", ebeY);
+        fields.put("ebeColor", ebeColor);
 
         for (Map.Entry<String, JTextField> e : fields.entrySet()) {
             settings.bind(e.getKey(), e.getValue());
         }
         List<String> taskKeys = new ArrayList<>(fields.keySet());
 
-        UiUtils.addRow(panel,  1, "Minimap X (lewy-gorny):", mapX);
-        UiUtils.addRow(panel,  1, "Minimap Y (lewy-gorny):", mapY);
-        UiUtils.addRow(panel,  2, "Minimap szerokosc:", mapW);
-        UiUtils.addRow(panel,  2, "Minimap wysokosc:", mapH);
-        UiUtils.addRow(panel,  3, "Tolerancja koloru (+/-):", tolerance);
-        UiUtils.addRow(panel,  4, "Prog dotarcia (px):", arrive);
-        UiUtils.addRow(panel,  5, "Punkt 1 kolor (R,G,B):", point1Color);
-        UiUtils.addRow(panel,  6, "Punkt 2 kolor (R,G,B):", point2Color);
-        UiUtils.addRow(panel,  7, "Punkt 3 kolor (R,G,B):", point3Color);
-        UiUtils.addRow(panel,  8, "TARGET_X (atak):", targetX);
-        UiUtils.addRow(panel,  8, "TARGET_Y (atak):", targetY);
-        UiUtils.addRow(panel,  8, "TARGET_COLOR (R,G,B):", targetColor);
-        UiUtils.addRow(panel,  9, "ROBAK_X:", robakX);
-        UiUtils.addRow(panel,  9, "ROBAK_Y:", robakY);
-        UiUtils.addRow(panel,  9, "ROBAK_COLOR (R,G,B):", robakColor);
-        UiUtils.addRow(panel, 10, "Loot message X:", lootX);
-        UiUtils.addRow(panel, 10, "Loot message Y:", lootY);
-        UiUtils.addRow(panel, 10, "Loot color (R,G,B):", lootColor);
-        UiUtils.addRow(panel, 11, "Loot tile 1 X:", tile1X);
-        UiUtils.addRow(panel, 11, "Loot tile 1 Y:", tile1Y);
-        UiUtils.addRow(panel, 11, "Loot tile 2 X:", tile2X);
-        UiUtils.addRow(panel, 11, "Loot tile 2 Y:", tile2Y);
-        UiUtils.addRow(panel, 11, "Loot tile 3 X:", tile3X);
-        UiUtils.addRow(panel, 11, "Loot tile 3 Y:", tile3Y);
-        UiUtils.addRow(panel, 11, "Loot tile 4 X:", tile4X);
-        UiUtils.addRow(panel, 11, "Loot tile 4 Y:", tile4Y);
-        UiUtils.addRow(panel, 11, "Loot tile 5 X:", tile5X);
-        UiUtils.addRow(panel, 11, "Loot tile 5 Y:", tile5Y);
-        UiUtils.addRow(panel, 11, "Loot tile 6 X:", tile6X);
-        UiUtils.addRow(panel, 11, "Loot tile 6 Y:", tile6Y);
-        UiUtils.addRow(panel, 11, "Loot tile 7 X:", tile7X);
-        UiUtils.addRow(panel, 11, "Loot tile 7 Y:", tile7Y);
-        UiUtils.addRow(panel, 11, "Loot tile 8 X:", tile8X);
-        UiUtils.addRow(panel, 11, "Loot tile 8 Y:", tile8Y);
-        UiUtils.addRow(panel, 11, "Loot tile 9 X:", tile9X);
-        UiUtils.addRow(panel, 11, "Loot tile 9 Y:", tile9Y);
-        UiUtils.addRow(panel, 12, "HEAL_X:", healX);
-        UiUtils.addRow(panel, 12, "HEAL_Y:", healY);
-        UiUtils.addRow(panel, 12, "HEAL_COLOR (R,G,B):", healColor);
-        UiUtils.addRow(panel, 13, "BUTY X:", butyX);
-        UiUtils.addRow(panel, 13, "BUTY Y:", butyY);
-        UiUtils.addRow(panel, 13, "BUTY COLOR (R,G,B):", butyColor);
+        // Grouped, category-titled layout: narrow numeric coord fields and wider
+        // R,G,B color fields share rows so each category reads at a glance.
+        JPanel panel = UiUtils.verticalBox();
+
+        JPanel minimap = UiUtils.category("1-4.");
+        minimap.add(UiUtils.row("Pozycja X/Y (lewy-gorny):", mapX, mapY));
+        minimap.add(UiUtils.row("Rozmiar szer/wys:", mapW, mapH));
+        minimap.add(UiUtils.row("+/-", tolerance,
+                "(px):", arrive));
+        panel.add(minimap);
+
+        JPanel points = UiUtils.category("5-7.");
+        points.add(UiUtils.row("1:", point1Color,
+                "2:", point2Color, "3:", point3Color));
+        panel.add(points);
+
+        JPanel target = UiUtils.category("8");
+        target.add(UiUtils.row("X/Y:", targetX, targetY, "color:", targetColor));
+        panel.add(target);
+
+        JPanel robak = UiUtils.category("9");
+        robak.add(UiUtils.row("X/Y:", robakX, robakY, "color:", robakColor));
+        panel.add(robak);
+
+        JPanel loot = UiUtils.category("10. Loot");
+        loot.add(UiUtils.row("X/Y:", lootX, lootY, "color:", lootColor));
+        panel.add(loot);
+
+        JPanel tiles = UiUtils.category("11. Loot 1-9 (X/Y)");
+        tiles.add(UiUtils.row("1:", tile1X, tile1Y, "2:", tile2X, tile2Y, "3:", tile3X, tile3Y));
+        tiles.add(UiUtils.row("4:", tile4X, tile4Y, "5:", tile5X, tile5Y, "6:", tile6X, tile6Y));
+        tiles.add(UiUtils.row("7:", tile7X, tile7Y, "8:", tile8X, tile8Y, "9:", tile9X, tile9Y));
+        panel.add(tiles);
+
+        JPanel heal = UiUtils.category("12. heal");
+        heal.add(UiUtils.row("X/Y:", healX, healY, "color:", healColor));
+        panel.add(heal);
+
+        JPanel ebe = UiUtils.category("13.");
+        ebe.add(UiUtils.row("X/Y:", ebeX, ebeY, "color:", ebeColor));
+        panel.add(ebe);
 
         JPanel buttonPanel = new JPanel(new GridLayout(1, 3));
         JButton startButton = new JButton("START TASK");
@@ -236,7 +235,7 @@ public final class TaskWindow {
             }
 
             controller.start(config);
-            watcherRef[0] = startColorWatcher(butyX, butyY, butyColor, 5000L);
+            watcherRef[0] = startColorWatcher(ebeX, ebeY, ebeColor, 5000L);
             startButton.setBackground(Color.GREEN);
             stopButton.setBackground(null);
         });
@@ -265,12 +264,15 @@ public final class TaskWindow {
             }
         });
 
-        frame.add(new JScrollPane(panel), BorderLayout.CENTER);
+        // NORTH wrapper keeps categories at their natural height (no vertical stretch).
+        JPanel northHold = new JPanel(new BorderLayout());
+        northHold.add(panel, BorderLayout.NORTH);
+        frame.add(new JScrollPane(northHold), BorderLayout.CENTER);
         frame.add(buttonPanel, BorderLayout.SOUTH);
         frame.setVisible(true);
     }
 
-    private static Thread startColorWatcher(JTextField butyX, JTextField butyY, JTextField butyColor, long intervalMs) {
+    private static Thread startColorWatcher(JTextField ebeX, JTextField ebeY, JTextField ebeColor, long intervalMs) {
         Thread watcher = new Thread(() -> {
             try {
                 Robot robot = new Robot();
@@ -280,14 +282,14 @@ public final class TaskWindow {
                     final String[] cs = new String[1];
                     try {
                         SwingUtilities.invokeAndWait(() -> {
-                            xs[0] = butyX.getText().trim();
-                            ys[0] = butyY.getText().trim();
-                            cs[0] = butyColor.getText().trim();
+                            xs[0] = ebeX.getText().trim();
+                            ys[0] = ebeY.getText().trim();
+                            cs[0] = ebeColor.getText().trim();
                         });
                     } catch (InvocationTargetException | InterruptedException e) {
-                        xs[0] = "1810";
-                        ys[0] = "1391";
-                        cs[0] = "58,61,63";
+                        xs[0] = DefaultSettings.get("ebeX");
+                        ys[0] = DefaultSettings.get("ebeY");
+                        cs[0] = DefaultSettings.get("ebeColor");
                     }
                     int x;
                     int y;

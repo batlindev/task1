@@ -1,4 +1,0 @@
-# Copy this file to config.properties and fill in your own values.
-# config.properties is git-ignored so secrets never land in the repo.
-telegram.token=PUT-YOUR-BOT-TOKEN-HERE
-telegram.chatId=PUT-YOUR-CHAT-ID-HERE

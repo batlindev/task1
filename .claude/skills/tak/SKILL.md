@@ -88,7 +88,15 @@ EOF
 )"
 ```
 
-### Step 6 — Cleanup and report
+### Step 6 — Return to main
+
+Switch back to `main` so the working tree isn't left on the TAK branch:
+
+```bash
+git checkout main
+```
+
+### Step 7 — Cleanup and report
 
 Delete the draft file if it was used:
 
