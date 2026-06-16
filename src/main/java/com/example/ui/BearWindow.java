@@ -5,10 +5,16 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.GridLayout;
 import java.awt.Robot;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
@@ -16,6 +22,7 @@ import javax.swing.SwingUtilities;
 
 import com.example.bot.bear.BearController;
 import com.example.config.BearConfig;
+import com.example.config.BearPresetStore;
 
 /**
  * The "Bear Control" window: minimap rectangle + the three uniquely-colored
@@ -82,6 +89,53 @@ public final class BearWindow {
         JTextField butyColor = new JTextField("58,61,63");
         JTextField telegramTokenField = new JTextField(token);
         JTextField telegramChatIdField = new JTextField(chatId);
+
+        // Stable key -> field registry, used to save/load presets generically.
+        Map<String, JTextField> fields = new LinkedHashMap<>();
+        fields.put("mapX", mapX);
+        fields.put("mapY", mapY);
+        fields.put("mapW", mapW);
+        fields.put("mapH", mapH);
+        fields.put("tolerance", tolerance);
+        fields.put("arrive", arrive);
+        fields.put("point1Color", point1Color);
+        fields.put("point2Color", point2Color);
+        fields.put("point3Color", point3Color);
+        fields.put("targetX", targetX);
+        fields.put("targetY", targetY);
+        fields.put("targetColor", targetColor);
+        fields.put("robakX", robakX);
+        fields.put("robakY", robakY);
+        fields.put("robakColor", robakColor);
+        fields.put("lootX", lootX);
+        fields.put("lootY", lootY);
+        fields.put("lootColor", lootColor);
+        fields.put("tile1X", tile1X);
+        fields.put("tile1Y", tile1Y);
+        fields.put("tile2X", tile2X);
+        fields.put("tile2Y", tile2Y);
+        fields.put("tile3X", tile3X);
+        fields.put("tile3Y", tile3Y);
+        fields.put("tile4X", tile4X);
+        fields.put("tile4Y", tile4Y);
+        fields.put("tile5X", tile5X);
+        fields.put("tile5Y", tile5Y);
+        fields.put("tile6X", tile6X);
+        fields.put("tile6Y", tile6Y);
+        fields.put("tile7X", tile7X);
+        fields.put("tile7Y", tile7Y);
+        fields.put("tile8X", tile8X);
+        fields.put("tile8Y", tile8Y);
+        fields.put("tile9X", tile9X);
+        fields.put("tile9Y", tile9Y);
+        fields.put("healX", healX);
+        fields.put("healY", healY);
+        fields.put("healColor", healColor);
+        fields.put("butyX", butyX);
+        fields.put("butyY", butyY);
+        fields.put("butyColor", butyColor);
+        fields.put("telegramToken", telegramTokenField);
+        fields.put("telegramChatId", telegramChatIdField);
 
         UiUtils.addRow(panel,  1, "Minimap X (lewy-gorny):", mapX);
         UiUtils.addRow(panel,  1, "Minimap Y (lewy-gorny):", mapY);
@@ -196,6 +250,75 @@ public final class BearWindow {
         buttonPanel.add(stopButton);
         buttonPanel.add(closeButton);
 
+        // Preset bar: dropdown of saved presets + save/delete.
+        BearPresetStore store = new BearPresetStore();
+        JPanel presetPanel = new JPanel(new BorderLayout(4, 0));
+        JComboBox<String> presetBox = new JComboBox<>();
+        JButton saveButton = new JButton("Zapisz");
+        JButton deleteButton = new JButton("Usuń");
+        JPanel presetButtons = new JPanel(new GridLayout(1, 2, 4, 0));
+        presetButtons.add(saveButton);
+        presetButtons.add(deleteButton);
+        presetPanel.add(new JLabel("Presety:"), BorderLayout.WEST);
+        presetPanel.add(presetBox, BorderLayout.CENTER);
+        presetPanel.add(presetButtons, BorderLayout.EAST);
+
+        // Suppress the load-on-select handler while we repopulate the dropdown.
+        final boolean[] loading = new boolean[1];
+        Runnable refreshPresets = () -> {
+            loading[0] = true;
+            presetBox.removeAllItems();
+            presetBox.addItem("");
+            for (String name : store.list()) {
+                presetBox.addItem(name);
+            }
+            loading[0] = false;
+        };
+        refreshPresets.run();
+
+        presetBox.addActionListener(e -> {
+            if (loading[0]) return;
+            Object sel = presetBox.getSelectedItem();
+            if (sel == null || sel.toString().isEmpty()) return;
+            Map<String, String> values = store.load(sel.toString());
+            for (Map.Entry<String, String> entry : values.entrySet()) {
+                JTextField field = fields.get(entry.getKey());
+                if (field != null) field.setText(entry.getValue());
+            }
+        });
+
+        saveButton.addActionListener(e -> {
+            String name = JOptionPane.showInputDialog(frame, "Nazwa ustawień:", "Zapisz preset",
+                    JOptionPane.PLAIN_MESSAGE);
+            if (name == null || name.trim().isEmpty()) return;
+            name = name.trim();
+            Map<String, String> values = new LinkedHashMap<>();
+            for (Map.Entry<String, JTextField> entry : fields.entrySet()) {
+                values.put(entry.getKey(), entry.getValue().getText());
+            }
+            try {
+                store.save(name, values);
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(frame, "Nie udało się zapisać: " + ex.getMessage(),
+                        "Błąd", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            refreshPresets.run();
+            presetBox.setSelectedItem(name);
+        });
+
+        deleteButton.addActionListener(e -> {
+            Object sel = presetBox.getSelectedItem();
+            if (sel == null || sel.toString().isEmpty()) return;
+            String name = sel.toString();
+            int ans = JOptionPane.showConfirmDialog(frame, "Usunąć preset \"" + name + "\"?",
+                    "Usuń preset", JOptionPane.YES_NO_OPTION);
+            if (ans != JOptionPane.YES_OPTION) return;
+            store.delete(name);
+            refreshPresets.run();
+        });
+
+        frame.add(presetPanel, BorderLayout.NORTH);
         frame.add(new JScrollPane(panel), BorderLayout.CENTER);
         frame.add(buttonPanel, BorderLayout.SOUTH);
         frame.setVisible(true);
