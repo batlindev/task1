@@ -46,6 +46,9 @@ public final class MainWindow {
         JButton sendIfRedButton = new JButton("SEND TELEGRAM");
         JButton readMeButton = new JButton("readMe");
         JButton taskButton = new JButton("TASK");
+        taskButton.setBackground(java.awt.Color.GREEN);
+        taskButton.setOpaque(true);
+        taskButton.setBorderPainted(false);
 
         JTextField check2XField = new PlaceholderTextField("X", DefaultSettings.get("check2X"));
         JTextField check2YField = new PlaceholderTextField("Y", DefaultSettings.get("check2Y"));
