@@ -61,6 +61,12 @@ public final class TaskConfig {
     public final String telegramToken;
     public final String telegramChatId;
 
+    /** Optional machine actions toggled in the UI generator panel. */
+    public final boolean lootEnabled;
+    public final boolean healEnabled;
+    /** When true, every SPACE attack also fires a Telegram message. */
+    public final boolean telegramOnAttack;
+
     private TaskConfig(Builder b) {
         this.mapX = b.mapX;
         this.mapY = b.mapY;
@@ -84,6 +90,9 @@ public final class TaskConfig {
         this.healColor = b.healColor;
         this.telegramToken = b.telegramToken;
         this.telegramChatId = b.telegramChatId;
+        this.lootEnabled = b.lootEnabled;
+        this.healEnabled = b.healEnabled;
+        this.telegramOnAttack = b.telegramOnAttack;
     }
 
     public static Builder builder() {
@@ -113,6 +122,9 @@ public final class TaskConfig {
         private Color healColor;
         private String telegramToken = "";
         private String telegramChatId = "";
+        private boolean lootEnabled = true;
+        private boolean healEnabled = true;
+        private boolean telegramOnAttack = false;
 
         public Builder minimap(int x, int y, int w, int h) {
             this.mapX = x; this.mapY = y; this.mapW = w; this.mapH = h; return this;
@@ -146,6 +158,12 @@ public final class TaskConfig {
         public Builder telegram(String token, String chatId) {
             this.telegramToken = token; this.telegramChatId = chatId; return this;
         }
+
+        public Builder lootEnabled(boolean v) { this.lootEnabled = v; return this; }
+
+        public Builder healEnabled(boolean v) { this.healEnabled = v; return this; }
+
+        public Builder telegramOnAttack(boolean v) { this.telegramOnAttack = v; return this; }
 
         public TaskConfig build() {
             return new TaskConfig(this);

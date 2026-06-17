@@ -14,9 +14,11 @@ import java.util.List;
 import java.util.Map;
 
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
@@ -42,9 +44,19 @@ public final class TaskWindow {
     }
 
     public static void open(AppSettings settings) {
+        open(settings, false);
+    }
+
+    /**
+     * @param withGenerator when true this is the TASK2 panel: shows the
+     *        action-generator (loot/heal/telegram checkboxes + live machine
+     *        preview) so the user composes the machine. When false it is the
+     *        plain TASK panel with the fixed loot+heal behavior.
+     */
+    public static void open(AppSettings settings, boolean withGenerator) {
         TaskController controller = new TaskController();
 
-        JFrame frame = new JFrame("Task Control");
+        JFrame frame = new JFrame(withGenerator ? "Task 2 - Generator" : "Task Control");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setSize(520, 720);
         frame.setLayout(new BorderLayout());
@@ -184,6 +196,33 @@ public final class TaskWindow {
         ebe.add(UiUtils.row("X/Y:", ebeX, ebeY, "color:", ebeColor));
         panel.add(ebe);
 
+        // Generator panel: toggle the optional machine actions and watch the
+        // live preview redraw so the user sees exactly what machine is built.
+        JCheckBox lootCheck = new JCheckBox("Loot (zbieraj 1-9 po zabiciu)", true);
+        JCheckBox healCheck = new JCheckBox("Heal (osobny watek ~4.5s)", true);
+        JCheckBox telegramAttackCheck = new JCheckBox("Telegram przy ataku (kazda SPACJA)", false);
+        JTextArea preview = new JTextArea(machinePreview(true, true, false));
+        preview.setEditable(false);
+        preview.setFont(new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.PLAIN, 12));
+        preview.setBackground(new Color(245, 245, 245));
+
+        Runnable refreshPreview = () -> preview.setText(machinePreview(
+                lootCheck.isSelected(), healCheck.isSelected(), telegramAttackCheck.isSelected()));
+        lootCheck.addActionListener(e -> refreshPreview.run());
+        healCheck.addActionListener(e -> refreshPreview.run());
+        telegramAttackCheck.addActionListener(e -> refreshPreview.run());
+
+        // Only the TASK2 panel exposes the generator; plain TASK keeps the fixed
+        // loot+heal behavior (the checkbox defaults above already encode it).
+        if (withGenerator) {
+            JPanel generator = UiUtils.category("14. Akcje maszyny (generator)");
+            generator.add(lootCheck);
+            generator.add(healCheck);
+            generator.add(telegramAttackCheck);
+            generator.add(preview);
+            panel.add(generator);
+        }
+
         JPanel buttonPanel = new JPanel(new GridLayout(1, 3));
         JButton startButton = new JButton("START TASK");
         JButton stopButton = new JButton("STOP TASK");
@@ -237,6 +276,9 @@ public final class TaskWindow {
                                 UiUtils.parseColor(healColor.getText()))
                         .telegram(token == null ? "" : token.trim(),
                                 chatId == null ? "" : chatId.trim())
+                        .lootEnabled(lootCheck.isSelected())
+                        .healEnabled(healCheck.isSelected())
+                        .telegramOnAttack(telegramAttackCheck.isSelected())
                         .build();
             } catch (NumberFormatException ex) {
                 System.out.println("Please enter valid TASK numbers.");
@@ -274,6 +316,30 @@ public final class TaskWindow {
         frame.add(new JScrollPane(northHold), BorderLayout.CENTER);
         frame.add(buttonPanel, BorderLayout.SOUTH);
         frame.setVisible(true);
+    }
+
+    /** Renders the assembled state machine as text for the generator preview. */
+    private static String machinePreview(boolean loot, boolean heal, boolean telegram) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("WALK   szukaj punktu -> klik -> auto-chodzenie\n");
+        sb.append("   |  dotarl (dist <= arrive)\n");
+        sb.append("   v\n");
+        sb.append("ATTACK bialy? -> SPACJA");
+        if (telegram) {
+            sb.append(" + Telegram");
+        }
+        sb.append("\n");
+        if (loot) {
+            sb.append("       brak potwora? -> zbierz LOOT 1-9 -> dalej\n");
+        } else {
+            sb.append("       brak potwora? -> (loot OFF) -> dalej\n");
+        }
+        sb.append("   |\n");
+        sb.append("   v\n");
+        sb.append("WALK   nastepny punkt (ping-pong 1,2,3,2)\n");
+        sb.append("\n");
+        sb.append("Rownolegle: ").append(heal ? "HEAL co ~4.5s" : "(heal OFF)");
+        return sb.toString();
     }
 
     private static Thread startColorWatcher(JTextField ebeX, JTextField ebeY, JTextField ebeColor, long intervalMs,

@@ -32,15 +32,16 @@ public final class TaskController {
         TaskPixelTrackerTask tracker = new TaskPixelTrackerTask(config);
         executor.scheduleWithFixedDelay(guard(tracker), 0, tickDelay, TimeUnit.MILLISECONDS);
 
-        // Loot tracker shares the same single thread (serialized with the tracker)
-        // and only scans while we are on a point — once a second.
-        executor.scheduleWithFixedDelay(guard(new TaskMessageLootTracker(config, tracker)), 0, 1000,
-                TimeUnit.MILLISECONDS);
+        // Loot is collected inline by the tracker at the kill moment
+        // (TaskPixelTrackerTask.collectLoot), no separate schedule needed.
 
         // Heal check: drink potion when HP pixel differs from "full" color (~4.5s interval).
-        long healDelay = (long) (900 + Math.random() * 500) * 5;
-        executor.scheduleWithFixedDelay(guard(new TaskHealTask(config)), 0, healDelay,
-                TimeUnit.MILLISECONDS);
+        // Optional — only scheduled when the user enabled it in the generator panel.
+        if (config.healEnabled) {
+            long healDelay = (long) (900 + Math.random() * 500) * 5;
+            executor.scheduleWithFixedDelay(guard(new TaskHealTask(config)), 0, healDelay,
+                    TimeUnit.MILLISECONDS);
+        }
     }
 
     /**

@@ -49,6 +49,10 @@ public final class MainWindow {
         taskButton.setBackground(java.awt.Color.GREEN);
         taskButton.setOpaque(true);
         taskButton.setBorderPainted(false);
+        JButton task2Button = new JButton("TASK 2");
+        task2Button.setBackground(java.awt.Color.CYAN);
+        task2Button.setOpaque(true);
+        task2Button.setBorderPainted(false);
 
         JTextField check2XField = new PlaceholderTextField("X", DefaultSettings.get("check2X"));
         JTextField check2YField = new PlaceholderTextField("Y", DefaultSettings.get("check2Y"));
@@ -94,7 +98,8 @@ public final class MainWindow {
             TelegramClient.sendMessage(token, chatId, "wiadomosc");
         });
 
-        taskButton.addActionListener(e -> TaskWindow.open(settings));
+        taskButton.addActionListener(e -> TaskWindow.open(settings, false));
+        task2Button.addActionListener(e -> TaskWindow.open(settings, true));
 
         readMeButton.addActionListener(e -> ReadMeWindow.open());
 
@@ -109,7 +114,7 @@ public final class MainWindow {
         panel.add(check2XField);
         panel.add(check2YField);
         panel.add(check2Button);
-        panel.add(new JLabel());
+        panel.add(task2Button);
 
         // Preset bar: one preset persists every Bot Control + Task Control field.
         TaskPresetStore store = new TaskPresetStore();
