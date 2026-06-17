@@ -192,6 +192,15 @@ public final class TaskWindow {
 
         final Thread[] watcherRef = new Thread[1];
 
+        // Shared STOP action: used by the STOP button and by the color watcher,
+        // so detecting the ebe color does the same thing as pressing STOP TASK.
+        Runnable stopAction = () -> {
+            controller.stop();
+            if (watcherRef[0] != null) watcherRef[0].interrupt();
+            startButton.setBackground(null);
+            stopButton.setBackground(Color.RED);
+        };
+
         startButton.addActionListener(e -> {
             TaskConfig config;
             try {
@@ -235,17 +244,12 @@ public final class TaskWindow {
             }
 
             controller.start(config);
-            watcherRef[0] = startColorWatcher(ebeX, ebeY, ebeColor, 5000L);
+            watcherRef[0] = startColorWatcher(ebeX, ebeY, ebeColor, 5000L, stopAction);
             startButton.setBackground(Color.GREEN);
             stopButton.setBackground(null);
         });
 
-        stopButton.addActionListener(e -> {
-            controller.stop();
-            if (watcherRef[0] != null) watcherRef[0].interrupt();
-            startButton.setBackground(null);
-            stopButton.setBackground(Color.RED);
-        });
+        stopButton.addActionListener(e -> stopAction.run());
         closeButton.addActionListener(e -> {
             controller.stop();
             if (watcherRef[0] != null) watcherRef[0].interrupt();
@@ -272,7 +276,8 @@ public final class TaskWindow {
         frame.setVisible(true);
     }
 
-    private static Thread startColorWatcher(JTextField ebeX, JTextField ebeY, JTextField ebeColor, long intervalMs) {
+    private static Thread startColorWatcher(JTextField ebeX, JTextField ebeY, JTextField ebeColor, long intervalMs,
+            Runnable onDetect) {
         Thread watcher = new Thread(() -> {
             try {
                 Robot robot = new Robot();
@@ -306,8 +311,9 @@ public final class TaskWindow {
                     Color c = robot.getPixelColor(x, y);
                     System.out.println("[ColorWatcher] Checking (" + x + "," + y + ") -> " + c);
                     if (c.equals(target)) {
-                        System.out.println("[ColorWatcher] Detected target color at (" + x + "," + y + "), exiting.");
-                        System.exit(0);
+                        System.out.println("[ColorWatcher] Detected target color at (" + x + "," + y + "), stopping task.");
+                        SwingUtilities.invokeLater(onDetect);
+                        return;
                     }
                     Thread.sleep(intervalMs);
                 }
