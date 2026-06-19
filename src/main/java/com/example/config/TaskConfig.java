@@ -6,8 +6,9 @@ import java.util.List;
 /**
  * Configuration for the Task patrol routine.
  *
- * The task walks between three player-placed minimap marks, each identified by
- * a unique color, in a ping-pong order (1 -> 2 -> 3 -> 2 -> 1 -> ...).
+ * The task walks an ordered loop of {@link PatrolStep}s built in the generator
+ * panel, cycled linearly 1..N..1. Each color step is a player-placed minimap
+ * mark identified by a unique color.
  *
  * The minimap panel is fixed on screen while the map scrolls underneath it, so
  * the player ("white cross") is always at the geometric center of the
@@ -32,11 +33,8 @@ public final class TaskConfig {
      *  of the minimap center (the player). */
     public final int arriveThreshold;
 
-    /** The three marks, in patrol order [point1, point2, point3]. */
-    public final Color[] points;
-
-    /** The patrol loop: an ordered list of steps, cycled linearly 1..N..1. Built
-     *  by the TASK2 generator, or derived from {@link #points} for plain TASK. */
+    /** The patrol loop: an ordered list of steps, cycled linearly 1..N..1, built
+     *  by the generator panel. */
     public final List<PatrolStep> steps;
 
     /** Pixel read while attacking on a point: turns WHITE when a hit lands. */
@@ -81,7 +79,6 @@ public final class TaskConfig {
         this.mapH = b.mapH;
         this.colorTolerance = b.colorTolerance;
         this.arriveThreshold = b.arriveThreshold;
-        this.points = b.points;
         this.steps = b.steps;
         this.targetX = b.targetX;
         this.targetY = b.targetY;
@@ -115,7 +112,6 @@ public final class TaskConfig {
         private int mapH;
         private int colorTolerance = 10;
         private int arriveThreshold = 5;
-        private Color[] points;
         private List<PatrolStep> steps;
         private int targetX;
         private int targetY;
@@ -145,12 +141,7 @@ public final class TaskConfig {
 
         public Builder arriveThreshold(int px) { this.arriveThreshold = px; return this; }
 
-        public Builder points(Color point1, Color point2, Color point3) {
-            this.points = new Color[] { point1, point2, point3 };
-            return this;
-        }
-
-        /** Explicit patrol loop (TASK2 generator). Overrides the points fallback. */
+        /** The patrol loop, built by the generator panel. */
         public Builder steps(List<PatrolStep> steps) { this.steps = steps; return this; }
 
         public Builder target(int x, int y, Color color) {
@@ -182,18 +173,8 @@ public final class TaskConfig {
         public Builder telegramOnLoot(boolean v) { this.telegramOnLoot = v; return this; }
 
         public TaskConfig build() {
-            // No explicit loop given (plain TASK): derive the classic ping-pong
-            // 1 -> 2 -> 3 -> 2 from the three points, all run-and-attack steps.
             if (steps == null) {
-                if (points != null) {
-                    steps = List.of(
-                            PatrolStep.attack(points[0]),
-                            PatrolStep.attack(points[1]),
-                            PatrolStep.attack(points[2]),
-                            PatrolStep.attack(points[1]));
-                } else {
-                    steps = List.of();
-                }
+                steps = List.of();
             }
             return new TaskConfig(this);
         }

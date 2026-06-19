@@ -2,13 +2,20 @@ package com.example.ui;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Insets;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 
 /** Small Swing helpers for building forms and parsing field values. */
 final class UiUtils {
@@ -70,6 +77,49 @@ final class UiUtils {
             }
         }
         return r;
+    }
+
+    /**
+     * A collapsible section: a full-width toggle header that shows/hides
+     * {@code content}. The header shows an up-arrow when open, a down-arrow when
+     * closed. Starts collapsed unless {@code expanded} is true. Add the returned
+     * wrapper into a vertical box.
+     */
+    static JPanel collapsible(String title, JComponent content, boolean expanded) {
+        JPanel wrap = new JPanel();
+        wrap.setLayout(new BoxLayout(wrap, BoxLayout.Y_AXIS));
+        wrap.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        // Flat, chrome-less header: blends with the background so it reads as a
+        // section title, not a button. The arrow is the only affordance.
+        JButton header = new JButton();
+        header.setHorizontalAlignment(SwingConstants.LEFT);
+        header.setAlignmentX(Component.LEFT_ALIGNMENT);
+        header.setBorderPainted(false);
+        header.setContentAreaFilled(false);
+        header.setFocusPainted(false);
+        header.setOpaque(false);
+        header.setMargin(new Insets(2, 2, 2, 2));
+        header.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        header.setFont(header.getFont().deriveFont(Font.BOLD, header.getFont().getSize2D() + 4f));
+        content.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.setVisible(expanded);
+
+        // Arrow trails the title: down-triangle = open (click to fold),
+        // right-triangle = closed.
+        Runnable relabel = () -> header.setText(title + "  " + (content.isVisible() ? "▾" : "▸"));
+        relabel.run();
+        header.setMaximumSize(new Dimension(Integer.MAX_VALUE, header.getPreferredSize().height));
+        header.addActionListener(e -> {
+            content.setVisible(!content.isVisible());
+            relabel.run();
+            wrap.revalidate();
+            wrap.repaint();
+        });
+
+        wrap.add(header);
+        wrap.add(content);
+        return wrap;
     }
 
     static int parseInt(JTextField field) {

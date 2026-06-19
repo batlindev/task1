@@ -2,6 +2,7 @@ package com.example.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.GridLayout;
 import java.awt.Robot;
 import java.io.IOException;
@@ -9,10 +10,12 @@ import java.time.LocalTime;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 
 import com.example.config.AppSettings;
@@ -21,7 +24,11 @@ import com.example.config.TaskPresetStore;
 import com.example.util.RobotActions;
 import com.example.util.TelegramClient;
 
-/** The main "Bot Control" window. Owns the single preset bar for both windows. */
+/**
+ * The "main page" window. Stacks, top to bottom: the preset bar, a collapsible
+ * Telegram section, the inline Task panel, and a collapsible Check section.
+ * Owns the single preset that persists every field across the whole page.
+ */
 public final class MainWindow {
 
     private MainWindow() {
@@ -30,42 +37,44 @@ public final class MainWindow {
     public static void show() {
         AppSettings settings = new AppSettings();
 
-        JFrame frame = new JFrame("Bot Control");
+        JFrame frame = new JFrame("main page");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(320, 340);
+        frame.setSize(540, 780);
         frame.setLayout(new BorderLayout());
 
-        JPanel panel = new JPanel(new GridLayout(0, 2));
-
-        JButton checkButton = new JButton("CHECK");
-
-        JLabel telegramTokenLabel = new JLabel("Telegram token:");
-        JTextField telegramTokenField = new JTextField(DefaultSettings.get("telegramToken"));
-        JLabel telegramChatIdLabel = new JLabel("Telegram chat_id:");
-        JTextField telegramChatIdField = new JTextField(DefaultSettings.get("telegramChatId"));
-        JButton sendIfRedButton = new JButton("SEND TELEGRAM");
+        // --- Telegram section (collapsible, default closed) -----------------
+        JTextField telegramTokenField = new JTextField(DefaultSettings.get("telegramToken"), 18);
+        JTextField telegramChatIdField = new JTextField(DefaultSettings.get("telegramChatId"), 18);
+        JButton sendButton = new JButton("SEND TELEGRAM");
         JButton readMeButton = new JButton("readMe");
-        JButton taskButton = new JButton("TASK");
-        taskButton.setBackground(java.awt.Color.GREEN);
-        taskButton.setOpaque(true);
-        taskButton.setBorderPainted(false);
-        JButton task2Button = new JButton("TASK 2");
-        task2Button.setBackground(java.awt.Color.CYAN);
-        task2Button.setOpaque(true);
-        task2Button.setBorderPainted(false);
 
+        settings.bind("telegramToken", telegramTokenField);
+        settings.bind("telegramChatId", telegramChatIdField);
+
+        sendButton.addActionListener(e -> {
+            String token = telegramTokenField.getText().trim();
+            String chatId = telegramChatIdField.getText().trim();
+            System.out.println(LocalTime.now() + " Sending Telegram message");
+            TelegramClient.sendMessage(token, chatId, "wiadomosc");
+        });
+        readMeButton.addActionListener(e -> ReadMeWindow.open());
+
+        // Plain box (the collapsible header already titles it "Telegram").
+        JPanel telegramBody = UiUtils.verticalBox();
+        telegramBody.add(UiUtils.row("token:", telegramTokenField));
+        telegramBody.add(UiUtils.row("chat_id:", telegramChatIdField));
+        telegramBody.add(UiUtils.row(sendButton, readMeButton));
+
+        // --- Check section (collapsible, default closed) --------------------
+        JButton checkButton = new JButton("CHECK");
         JTextField check2XField = new PlaceholderTextField("X", DefaultSettings.get("check2X"));
         JTextField check2YField = new PlaceholderTextField("Y", DefaultSettings.get("check2Y"));
         JButton check2Button = new JButton("CHECK 2");
 
-        // Bind Bot Control inputs into the shared registry so the preset covers them.
-        settings.bind("telegramToken", telegramTokenField);
-        settings.bind("telegramChatId", telegramChatIdField);
         settings.bind("check2X", check2XField);
         settings.bind("check2Y", check2YField);
 
         checkButton.addActionListener(e -> CheckWindow.open());
-
         check2Button.addActionListener(e -> {
             final int x;
             final int y;
@@ -91,32 +100,29 @@ public final class MainWindow {
             }).start();
         });
 
-        sendIfRedButton.addActionListener(e -> {
-            String token = telegramTokenField.getText().trim();
-            String chatId = telegramChatIdField.getText().trim();
-            System.out.println(LocalTime.now() + " Sending Telegram message");
-            TelegramClient.sendMessage(token, chatId, "wiadomosc");
-        });
+        // Collapsible header titles it "Check". Two grouped sub-sections so it
+        // is obvious the X/Y inputs belong to CHECK 2.
+        JPanel checkBody = UiUtils.verticalBox();
 
-        taskButton.addActionListener(e -> TaskWindow.open(settings, false));
-        task2Button.addActionListener(e -> TaskWindow.open(settings, true));
+        JPanel checkGroup = UiUtils.category("CHECK");
+        checkGroup.add(UiUtils.row(checkButton));
+        checkBody.add(checkGroup);
 
-        readMeButton.addActionListener(e -> ReadMeWindow.open());
+        JPanel check2Group = UiUtils.category("CHECK 2");
+        check2Group.add(UiUtils.row("X:", check2XField, "Y:", check2YField));
+        check2Group.add(UiUtils.row(check2Button));
+        checkBody.add(check2Group);
 
-        panel.add(telegramTokenLabel);
-        panel.add(telegramTokenField);
-        panel.add(telegramChatIdLabel);
-        panel.add(telegramChatIdField);
-        panel.add(sendIfRedButton);
-        panel.add(taskButton);
-        panel.add(checkButton);
-        panel.add(readMeButton);
-        panel.add(check2XField);
-        panel.add(check2YField);
-        panel.add(check2Button);
-        panel.add(task2Button);
+        // --- Content: task panel -> telegram (closed) -> check (closed) -----
+        // Task panel = generator, START/STOP, settings. Telegram + Check below.
+        JPanel content = UiUtils.verticalBox();
+        JComponent taskPanel = TaskPanel.build(settings);
+        taskPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(taskPanel);
+        content.add(UiUtils.collapsible("Telegram", telegramBody, false));
+        content.add(UiUtils.collapsible("Check", checkBody, false));
 
-        // Preset bar: one preset persists every Bot Control + Task Control field.
+        // --- Preset bar (unchanged), pinned to the top ----------------------
         TaskPresetStore store = new TaskPresetStore();
         JPanel presetPanel = new JPanel(new BorderLayout(4, 0));
         JComboBox<String> presetBox = new JComboBox<>();
@@ -176,8 +182,12 @@ public final class MainWindow {
             refreshPresets.run();
         });
 
+        // NORTH wrapper keeps content at natural height (no vertical stretch).
+        JPanel northHold = new JPanel(new BorderLayout());
+        northHold.add(content, BorderLayout.NORTH);
+
         frame.add(presetPanel, BorderLayout.NORTH);
-        frame.add(panel, BorderLayout.CENTER);
+        frame.add(new JScrollPane(northHold), BorderLayout.CENTER);
         frame.setVisible(true);
     }
 }
