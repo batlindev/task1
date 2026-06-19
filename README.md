@@ -2,23 +2,29 @@
 
 Bot z interfejsem (Java Swing).
 
-## Pobierz i zainstaluj (Linux / Ubuntu)
+## Pobierz i zainstaluj
 
-**[⬇ Pobierz bear_1.0-1_amd64.deb](https://github.com/batlindev/task1/releases/download/v1.0/bear_1.0-1_amd64.deb)**
+Java jest spakowana w instalatorze — **nic więcej instalować nie trzeba**.
+
+### 🪟 Windows
+
+**[⬇ Pobierz bear-1.1.msi](https://github.com/batlindev/task1/releases/download/v1.1/bear-1.1.msi)**
+
+Dwuklik w `.msi` → instaluje się, **bear** pojawia się w menu Start.
+
+### 🐧 Linux (Ubuntu / Debian)
+
+**[⬇ Pobierz bear_1.1-1_amd64.deb](https://github.com/batlindev/task1/releases/download/v1.1/bear_1.1-1_amd64.deb)**
 
 ```bash
-sudo dpkg -i bear_1.0-1_amd64.deb
+sudo dpkg -i bear_1.1-1_amd64.deb
 ```
 
 Potem uruchom **bear** z menu aplikacji (albo komenda `bear` w terminalu).
 
-Java jest spakowana w środku — nic więcej instalować nie trzeba.
+Odinstalowanie: `sudo dpkg -r bear`
 
-Odinstalowanie:
-
-```bash
-sudo dpkg -r bear
-```
+> Wszystkie wersje: [Releases](https://github.com/batlindev/task1/releases).
 
 ## 📜 Co nowego (changelog)
 
@@ -27,6 +33,9 @@ sudo dpkg -r bear
 
 <!-- AUTO-CHANGELOG:START -->
 ### 2026-06-19
+- 📦 **dist** — Release `v1.1`: instalator Windows `.msi` (47 MB) + Linux `.deb` (34 MB), Java w środku
+- 🔧 **chore** — CI (GitHub Actions): push taga `vX.Y` buduje `.msi` (Windows) i `.deb` (Linux) i wrzuca do Release
+- 📝 **docs** — README: osobne sekcje pobierania Windows / Linux, bump na v1.1
 - 🤖 **skill** — `/redme` skanuje zmiany i aktualizuje ten changelog przed commitem/merge na `main`
 - 📦 **dist** — pierwszy build `.deb` + GitHub Release `v1.0` (Java spakowana, instalacja dwuklikiem)
 - 📝 **docs** — link do pobrania `.deb` w README + instrukcja instalacji i buildu
@@ -84,13 +93,27 @@ Wymaga JDK 17.
 mvn package          # buduje jar do target/
 ```
 
-Zbudowanie nowego `.deb`:
+### Nowy release (automat — zalecane)
+
+Wystarczy push taga — CI (GitHub Actions) zbuduje `.msi` (Windows) i `.deb` (Linux)
+i dołączy je do Release:
+
+```bash
+git tag v1.2
+git push origin v1.2
+```
+
+Potem zaktualizuj wersję w linkach do pobrania na górze README.
+
+### Ręczny build `.deb` (Linux)
 
 ```bash
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 mvn clean package
-jpackage --type deb --name bear --app-version 1.0 \
+jpackage --type deb --name bear --app-version 1.2 \
   --input target --main-jar demo-1.0-SNAPSHOT.jar \
   --main-class com.example.Main --dest dist \
   --linux-shortcut --vendor batlin
 ```
+
+Windows `.exe`/`.msi` da się zbudować tylko na Windows — dlatego robi to CI.
