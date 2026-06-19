@@ -1,0 +1,110 @@
+name: Build & Release
+
+# Push taga vX.Y → buduje instalatory na Windows (.msi) i Linux (.deb)
+# i dołącza je jako assety do Release o tym tagu.
+# Można też odpalić ręcznie (workflow_dispatch) — wtedy pliki lądują jako artefakty runu.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Wersja aplikacji, np. 1.1'
+        required: true
+        default: '1.1'
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Ustal wersję
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build jar
+        run: mvn -q clean package
+
+      - name: Zainstaluj WiX (potrzebne do .msi)
+        run: choco install wixtoolset --version=3.11.2 -y --no-progress
+
+      - name: jpackage -> .msi
+        shell: bash
+        run: |
+          jpackage --type msi --name bear \
+            --app-version "${{ steps.ver.outputs.version }}" \
+            --input target --main-jar demo-1.0-SNAPSHOT.jar \
+            --main-class com.example.Main --dest dist \
+            --win-shortcut --win-menu --vendor batlin
+          ls -la dist
+
+      - name: Upload artefakt (dla workflow_dispatch)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bear-windows-msi
+          path: dist/*.msi
+
+      - name: Dołącz .msi do Release (tylko przy tagu)
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.msi
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Ustal wersję
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build jar
+        run: mvn -q clean package
+
+      - name: jpackage -> .deb
+        run: |
+          jpackage --type deb --name bear \
+            --app-version "${{ steps.ver.outputs.version }}" \
+            --input target --main-jar demo-1.0-SNAPSHOT.jar \
+            --main-class com.example.Main --dest dist \
+            --linux-shortcut --vendor batlin
+          ls -la dist
+
+      - name: Upload artefakt (dla workflow_dispatch)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bear-linux-deb
+          path: dist/*.deb
+
+      - name: Dołącz .deb do Release (tylko przy tagu)
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.deb
