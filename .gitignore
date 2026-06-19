@@ -40,3 +40,4 @@ jdk*/
 # Local panel presets (machine-specific screen coords; may hold Telegram secrets)
 bear-presets/
 task-presets/
+dist/
