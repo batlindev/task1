@@ -41,8 +41,7 @@ jobs:
       - name: Build jar
         run: mvn -q clean package
 
-      - name: Zainstaluj WiX (potrzebne do .msi)
-        run: choco install wixtoolset --version=3.11.2 -y --no-progress
+      # WiX 3.14 jest preinstalowany na windows-latest — nie instalujemy go.
 
       - name: jpackage -> .msi
         shell: bash
