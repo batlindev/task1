@@ -164,6 +164,8 @@ public final class TaskWindow {
         for (String k : fields.keySet()) {
             taskKeys.add(prefix + k);
         }
+        // Non-textfield state bound below (TASK2 loop steps); unbound on close.
+        List<String> taskStateKeys = new ArrayList<>();
 
         // Grouped, category-titled layout: narrow numeric coord fields and wider
         // R,G,B color fields share rows so each category reads at a glance.
@@ -256,6 +258,18 @@ public final class TaskWindow {
                 loopList.revalidate();
                 loopList.repaint();
             };
+
+            // Make the loop part of the preset: snapshot serializes the steps,
+            // apply rebuilds them. Default (no preset) = empty list.
+            String loopKey = prefix + "loopSteps";
+            taskStateKeys.add(loopKey);
+            settings.bindState(loopKey,
+                    () -> PatrolStep.encodeList(loopSteps),
+                    text -> {
+                        loopSteps.clear();
+                        loopSteps.addAll(PatrolStep.decodeList(text));
+                        refreshLoop.run();
+                    });
 
             JButton addAtk = new JButton("+ BIEG+ATAK");
             JButton addRun = new JButton("+ BIEG");
@@ -439,6 +453,7 @@ public final class TaskWindow {
             @Override
             public void windowClosed(WindowEvent e) {
                 settings.unbind(taskKeys);
+                settings.unbindState(taskStateKeys);
             }
         });
 

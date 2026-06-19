@@ -1,6 +1,8 @@
 package com.example.config;
 
 import java.awt.Color;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * One step of the patrol loop.
@@ -41,5 +43,71 @@ public record PatrolStep(Type type, Color color) {
     /** Yellow-marker steps locate the nearest marker to center, not a centroid. */
     public boolean isWaypoint() {
         return type == Type.ROPE_DOWN || type == Type.LADDER_UP || type == Type.ROPE_UP;
+    }
+
+    /**
+     * Serialize one step. Color steps carry their {@code TYPE:R,G,B}; waypoint
+     * steps use the fixed yellow marker so they encode as bare {@code TYPE}.
+     */
+    public String encode() {
+        if (isWaypoint()) {
+            return type.name();
+        }
+        return type.name() + ":" + color.getRed() + "," + color.getGreen() + "," + color.getBlue();
+    }
+
+    /** Parse one encoded step; throws on an unknown type or malformed color. */
+    public static PatrolStep decode(String token) {
+        String s = token.trim();
+        int colon = s.indexOf(':');
+        Type t = Type.valueOf(colon < 0 ? s : s.substring(0, colon));
+        switch (t) {
+            case ROPE_DOWN:
+                return ropeDown();
+            case LADDER_UP:
+                return ladderUp();
+            case ROPE_UP:
+                return ropeUp();
+            default:
+                return new PatrolStep(t, parseColor(s.substring(colon + 1)));
+        }
+    }
+
+    /** Encode a whole loop as {@code step;step;...} (empty list = empty string). */
+    public static String encodeList(List<PatrolStep> steps) {
+        StringBuilder sb = new StringBuilder();
+        for (PatrolStep s : steps) {
+            if (sb.length() > 0) {
+                sb.append(';');
+            }
+            sb.append(s.encode());
+        }
+        return sb.toString();
+    }
+
+    /** Parse an encoded loop; bad steps are skipped (logged), never thrown. */
+    public static List<PatrolStep> decodeList(String text) {
+        List<PatrolStep> out = new ArrayList<>();
+        if (text == null) {
+            return out;
+        }
+        for (String part : text.split(";")) {
+            if (part.trim().isEmpty()) {
+                continue;
+            }
+            try {
+                out.add(decode(part));
+            } catch (RuntimeException ex) {
+                System.out.println("Pomijam zly krok petli: " + part + " (" + ex.getMessage() + ")");
+            }
+        }
+        return out;
+    }
+
+    private static Color parseColor(String rgb) {
+        String[] p = rgb.split(",");
+        return new Color(Integer.parseInt(p[0].trim()),
+                Integer.parseInt(p[1].trim()),
+                Integer.parseInt(p[2].trim()));
     }
 }
