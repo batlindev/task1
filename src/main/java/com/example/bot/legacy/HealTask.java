@@ -1,3 +1,4 @@
+package com.example.bot.legacy;
 // package com.example.bot;
 
 // import com.example.config.BotSettings;

@@ -33,6 +33,7 @@ Odinstalowanie: `sudo dpkg -r bear`
 
 <!-- AUTO-CHANGELOG:START -->
 ### 2026-06-19
+- ♻️ **refactor** — stare klasy generycznego bota (`BotController`, `PixelTrackerTask`, `HealTask`, `PressXTask`, `TelegramAutoClickTask`) przeniesione do pakietu `com.example.bot.legacy`
 - 📦 **dist** — Release `v1.1`: instalator Windows `.msi` (47 MB) + Linux `.deb` (34 MB), Java w środku
 - 🔧 **chore** — CI (GitHub Actions): push taga `vX.Y` buduje `.msi` (Windows) i `.deb` (Linux) i wrzuca do Release
 - 📝 **docs** — README: osobne sekcje pobierania Windows / Linux, bump na v1.1
