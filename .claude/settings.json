@@ -3,7 +3,10 @@
     "allow": [
       "Bash(mvn *)",
       "Bash(java *)",
-      "Bash(gh run *)"
+      "Bash(git pull *)",
+      "Bash(git tag *)",
+      "Bash(gh run *)",
+      "Bash(gh workflow *)"
     ]
   }
 }
