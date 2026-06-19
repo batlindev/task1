@@ -1,6 +1,7 @@
 package com.example.config;
 
 import java.awt.Color;
+import java.util.List;
 
 /**
  * Configuration for the Task patrol routine.
@@ -34,6 +35,10 @@ public final class TaskConfig {
     /** The three marks, in patrol order [point1, point2, point3]. */
     public final Color[] points;
 
+    /** The patrol loop: an ordered list of steps, cycled linearly 1..N..1. Built
+     *  by the TASK2 generator, or derived from {@link #points} for plain TASK. */
+    public final List<PatrolStep> steps;
+
     /** Pixel read while attacking on a point: turns WHITE when a hit lands. */
     public final int targetX;
     public final int targetY;
@@ -66,6 +71,8 @@ public final class TaskConfig {
     public final boolean healEnabled;
     /** When true, every SPACE attack also fires a Telegram message. */
     public final boolean telegramOnAttack;
+    /** When true, grabbing loot fires a Telegram message. */
+    public final boolean telegramOnLoot;
 
     private TaskConfig(Builder b) {
         this.mapX = b.mapX;
@@ -75,6 +82,7 @@ public final class TaskConfig {
         this.colorTolerance = b.colorTolerance;
         this.arriveThreshold = b.arriveThreshold;
         this.points = b.points;
+        this.steps = b.steps;
         this.targetX = b.targetX;
         this.targetY = b.targetY;
         this.targetColor = b.targetColor;
@@ -93,6 +101,7 @@ public final class TaskConfig {
         this.lootEnabled = b.lootEnabled;
         this.healEnabled = b.healEnabled;
         this.telegramOnAttack = b.telegramOnAttack;
+        this.telegramOnLoot = b.telegramOnLoot;
     }
 
     public static Builder builder() {
@@ -107,6 +116,7 @@ public final class TaskConfig {
         private int colorTolerance = 10;
         private int arriveThreshold = 5;
         private Color[] points;
+        private List<PatrolStep> steps;
         private int targetX;
         private int targetY;
         private Color targetColor;
@@ -125,6 +135,7 @@ public final class TaskConfig {
         private boolean lootEnabled = true;
         private boolean healEnabled = true;
         private boolean telegramOnAttack = false;
+        private boolean telegramOnLoot = true;
 
         public Builder minimap(int x, int y, int w, int h) {
             this.mapX = x; this.mapY = y; this.mapW = w; this.mapH = h; return this;
@@ -138,6 +149,9 @@ public final class TaskConfig {
             this.points = new Color[] { point1, point2, point3 };
             return this;
         }
+
+        /** Explicit patrol loop (TASK2 generator). Overrides the points fallback. */
+        public Builder steps(List<PatrolStep> steps) { this.steps = steps; return this; }
 
         public Builder target(int x, int y, Color color) {
             this.targetX = x; this.targetY = y; this.targetColor = color; return this;
@@ -165,7 +179,22 @@ public final class TaskConfig {
 
         public Builder telegramOnAttack(boolean v) { this.telegramOnAttack = v; return this; }
 
+        public Builder telegramOnLoot(boolean v) { this.telegramOnLoot = v; return this; }
+
         public TaskConfig build() {
+            // No explicit loop given (plain TASK): derive the classic ping-pong
+            // 1 -> 2 -> 3 -> 2 from the three points, all run-and-attack steps.
+            if (steps == null) {
+                if (points != null) {
+                    steps = List.of(
+                            PatrolStep.attack(points[0]),
+                            PatrolStep.attack(points[1]),
+                            PatrolStep.attack(points[2]),
+                            PatrolStep.attack(points[1]));
+                } else {
+                    steps = List.of();
+                }
+            }
             return new TaskConfig(this);
         }
     }

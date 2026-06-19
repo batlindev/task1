@@ -3,6 +3,7 @@ package com.example.ui;
 import java.awt.AWTException;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.Robot;
 import java.awt.event.WindowAdapter;
@@ -16,15 +17,16 @@ import java.util.Map;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
 import com.example.bot.task.TaskController;
 import com.example.config.AppSettings;
 import com.example.config.DefaultSettings;
+import com.example.config.PatrolStep;
 import com.example.config.TaskConfig;
 
 /**
@@ -61,48 +63,54 @@ public final class TaskWindow {
         frame.setSize(520, 720);
         frame.setLayout(new BorderLayout());
 
-        JTextField mapX = UiUtils.num(DefaultSettings.get("mapX"));
-        JTextField mapY = UiUtils.num(DefaultSettings.get("mapY"));
-        JTextField mapW = UiUtils.num(DefaultSettings.get("mapW"));
-        JTextField mapH = UiUtils.num(DefaultSettings.get("mapH"));
-        JTextField tolerance = UiUtils.num(DefaultSettings.get("tolerance"));
-        JTextField arrive = UiUtils.num(DefaultSettings.get("arrive"));
-        JTextField point1Color = UiUtils.rgb(DefaultSettings.get("point1Color"));    // niebieski (prawo)
-        JTextField point2Color = UiUtils.rgb(DefaultSettings.get("point2Color"));    // czerwony (lewo od krzyzyka)
-        JTextField point3Color = UiUtils.rgb(DefaultSettings.get("point3Color"));    // zielony (dol)
-        JTextField targetX = UiUtils.num(DefaultSettings.get("targetX"));
-        JTextField targetY = UiUtils.num(DefaultSettings.get("targetY"));
-        JTextField targetColor = UiUtils.rgb(DefaultSettings.get("targetColor"));
-        JTextField robakX = UiUtils.num(DefaultSettings.get("robakX"));
-        JTextField robakY = UiUtils.num(DefaultSettings.get("robakY"));
-        JTextField robakColor = UiUtils.rgb(DefaultSettings.get("robakColor"));
-        JTextField lootX = UiUtils.num(DefaultSettings.get("lootX"));
-        JTextField lootY = UiUtils.num(DefaultSettings.get("lootY"));
-        JTextField lootColor = UiUtils.rgb(DefaultSettings.get("lootColor"));
-        JTextField tile1X = UiUtils.num(DefaultSettings.get("tile1X"));
-        JTextField tile1Y = UiUtils.num(DefaultSettings.get("tile1Y"));
-        JTextField tile2X = UiUtils.num(DefaultSettings.get("tile2X"));
-        JTextField tile2Y = UiUtils.num(DefaultSettings.get("tile2Y"));
-        JTextField tile3X = UiUtils.num(DefaultSettings.get("tile3X"));
-        JTextField tile3Y = UiUtils.num(DefaultSettings.get("tile3Y"));
-        JTextField tile4X = UiUtils.num(DefaultSettings.get("tile4X"));
-        JTextField tile4Y = UiUtils.num(DefaultSettings.get("tile4Y"));
-        JTextField tile5X = UiUtils.num(DefaultSettings.get("tile5X"));
-        JTextField tile5Y = UiUtils.num(DefaultSettings.get("tile5Y"));
-        JTextField tile6X = UiUtils.num(DefaultSettings.get("tile6X"));
-        JTextField tile6Y = UiUtils.num(DefaultSettings.get("tile6Y"));
-        JTextField tile7X = UiUtils.num(DefaultSettings.get("tile7X"));
-        JTextField tile7Y = UiUtils.num(DefaultSettings.get("tile7Y"));
-        JTextField tile8X = UiUtils.num(DefaultSettings.get("tile8X"));
-        JTextField tile8Y = UiUtils.num(DefaultSettings.get("tile8Y"));
-        JTextField tile9X = UiUtils.num(DefaultSettings.get("tile9X"));
-        JTextField tile9Y = UiUtils.num(DefaultSettings.get("tile9Y"));
-        JTextField healX = UiUtils.num(DefaultSettings.get("healX"));
-        JTextField healY = UiUtils.num(DefaultSettings.get("healY"));
-        JTextField healColor = UiUtils.rgb(DefaultSettings.get("healColor"));
-        JTextField ebeX = UiUtils.num(DefaultSettings.get("ebeX"));
-        JTextField ebeY = UiUtils.num(DefaultSettings.get("ebeY"));
-        JTextField ebeColor = UiUtils.rgb(DefaultSettings.get("ebeColor"));
+        // TASK2 keeps its own settings/presets under a "t2." key prefix, so it no
+        // longer overwrites plain TASK. Field defaults still read the same keys,
+        // so TASK2 starts pre-filled with the same values as TASK.
+        String prefix = withGenerator ? "t2." : "";
+        java.util.function.Function<String, String> def = k -> DefaultSettings.get(prefix + k);
+
+        JTextField mapX = UiUtils.num(def.apply("mapX"));
+        JTextField mapY = UiUtils.num(def.apply("mapY"));
+        JTextField mapW = UiUtils.num(def.apply("mapW"));
+        JTextField mapH = UiUtils.num(def.apply("mapH"));
+        JTextField tolerance = UiUtils.num(def.apply("tolerance"));
+        JTextField arrive = UiUtils.num(def.apply("arrive"));
+        JTextField point1Color = UiUtils.rgb(def.apply("point1Color"));    // niebieski (prawo)
+        JTextField point2Color = UiUtils.rgb(def.apply("point2Color"));    // czerwony (lewo od krzyzyka)
+        JTextField point3Color = UiUtils.rgb(def.apply("point3Color"));    // zielony (dol)
+        JTextField targetX = UiUtils.num(def.apply("targetX"));
+        JTextField targetY = UiUtils.num(def.apply("targetY"));
+        JTextField targetColor = UiUtils.rgb(def.apply("targetColor"));
+        JTextField robakX = UiUtils.num(def.apply("robakX"));
+        JTextField robakY = UiUtils.num(def.apply("robakY"));
+        JTextField robakColor = UiUtils.rgb(def.apply("robakColor"));
+        JTextField lootX = UiUtils.num(def.apply("lootX"));
+        JTextField lootY = UiUtils.num(def.apply("lootY"));
+        JTextField lootColor = UiUtils.rgb(def.apply("lootColor"));
+        JTextField tile1X = UiUtils.num(def.apply("tile1X"));
+        JTextField tile1Y = UiUtils.num(def.apply("tile1Y"));
+        JTextField tile2X = UiUtils.num(def.apply("tile2X"));
+        JTextField tile2Y = UiUtils.num(def.apply("tile2Y"));
+        JTextField tile3X = UiUtils.num(def.apply("tile3X"));
+        JTextField tile3Y = UiUtils.num(def.apply("tile3Y"));
+        JTextField tile4X = UiUtils.num(def.apply("tile4X"));
+        JTextField tile4Y = UiUtils.num(def.apply("tile4Y"));
+        JTextField tile5X = UiUtils.num(def.apply("tile5X"));
+        JTextField tile5Y = UiUtils.num(def.apply("tile5Y"));
+        JTextField tile6X = UiUtils.num(def.apply("tile6X"));
+        JTextField tile6Y = UiUtils.num(def.apply("tile6Y"));
+        JTextField tile7X = UiUtils.num(def.apply("tile7X"));
+        JTextField tile7Y = UiUtils.num(def.apply("tile7Y"));
+        JTextField tile8X = UiUtils.num(def.apply("tile8X"));
+        JTextField tile8Y = UiUtils.num(def.apply("tile8Y"));
+        JTextField tile9X = UiUtils.num(def.apply("tile9X"));
+        JTextField tile9Y = UiUtils.num(def.apply("tile9Y"));
+        JTextField healX = UiUtils.num(def.apply("healX"));
+        JTextField healY = UiUtils.num(def.apply("healY"));
+        JTextField healColor = UiUtils.rgb(def.apply("healColor"));
+        JTextField ebeX = UiUtils.num(def.apply("ebeX"));
+        JTextField ebeY = UiUtils.num(def.apply("ebeY"));
+        JTextField ebeColor = UiUtils.rgb(def.apply("ebeColor"));
 
         // Stable key -> field registry; bind each into the shared AppSettings.
         Map<String, JTextField> fields = new LinkedHashMap<>();
@@ -150,9 +158,12 @@ public final class TaskWindow {
         fields.put("ebeColor", ebeColor);
 
         for (Map.Entry<String, JTextField> e : fields.entrySet()) {
-            settings.bind(e.getKey(), e.getValue());
+            settings.bind(prefix + e.getKey(), e.getValue());
         }
-        List<String> taskKeys = new ArrayList<>(fields.keySet());
+        List<String> taskKeys = new ArrayList<>();
+        for (String k : fields.keySet()) {
+            taskKeys.add(prefix + k);
+        }
 
         // Grouped, category-titled layout: narrow numeric coord fields and wider
         // R,G,B color fields share rows so each category reads at a glance.
@@ -165,21 +176,33 @@ public final class TaskWindow {
                 "(px):", arrive));
         panel.add(minimap);
 
-        JPanel points = UiUtils.category("5-7.");
-        points.add(UiUtils.row("1:", point1Color,
-                "2:", point2Color, "3:", point3Color));
-        panel.add(points);
+        // Plain TASK uses the three fixed marks (ping-pong). TASK2 hides them —
+        // its loop is built in the generator (panel 14) instead.
+        if (!withGenerator) {
+            JPanel points = UiUtils.category("5-7.");
+            points.add(UiUtils.row("1:", point1Color,
+                    "2:", point2Color, "3:", point3Color));
+            panel.add(points);
+        }
+
+        // Telegram-on-attack: fires a message on every SPACE swing. Lives here
+        // next to the attack pixel (panel 8), available in both TASK and TASK2.
+        JCheckBox telegramAttackCheck = new JCheckBox("telegram msg", false);
 
         JPanel target = UiUtils.category("8");
-        target.add(UiUtils.row("X/Y:", targetX, targetY, "color:", targetColor));
+        target.add(UiUtils.row("X/Y:", targetX, targetY, "color:", targetColor, telegramAttackCheck));
         panel.add(target);
 
         JPanel robak = UiUtils.category("9");
         robak.add(UiUtils.row("X/Y:", robakX, robakY, "color:", robakColor));
         panel.add(robak);
 
+        // Loot checkbox: toggles ONLY the Telegram ping fired when loot is
+        // grabbed. Loot collection itself runs regardless.
+        JCheckBox lootCheck = new JCheckBox("telegram msg", true);
+
         JPanel loot = UiUtils.category("10. Loot");
-        loot.add(UiUtils.row("X/Y:", lootX, lootY, "color:", lootColor));
+        loot.add(UiUtils.row("X/Y:", lootX, lootY, "color:", lootColor, lootCheck));
         panel.add(loot);
 
         JPanel tiles = UiUtils.category("11. Loot 1-9 (X/Y)");
@@ -196,31 +219,126 @@ public final class TaskWindow {
         ebe.add(UiUtils.row("X/Y:", ebeX, ebeY, "color:", ebeColor));
         panel.add(ebe);
 
-        // Generator panel: toggle the optional machine actions and watch the
-        // live preview redraw so the user sees exactly what machine is built.
-        JCheckBox lootCheck = new JCheckBox("Loot (zbieraj 1-9 po zabiciu)", true);
-        JCheckBox healCheck = new JCheckBox("Heal (osobny watek ~4.5s)", true);
-        JCheckBox telegramAttackCheck = new JCheckBox("Telegram przy ataku (kazda SPACJA)", false);
-        JTextArea preview = new JTextArea(machinePreview(true, true, false));
-        preview.setEditable(false);
-        preview.setFont(new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.PLAIN, 12));
-        preview.setBackground(new Color(245, 245, 245));
+        // Loop generator (TASK2 only): the user builds an ordered list of steps,
+        // each a color + type (BIEG+ATAK = walk then attack, BIEG = walk only).
+        // The list cycles linearly 1..N..1, so a ping-pong is just colors added
+        // in ping-pong order. Forward ref so the "URUCHOM" button can start.
+        final Runnable[] startRef = new Runnable[1];
+        List<PatrolStep> loopSteps = new ArrayList<>();
 
-        Runnable refreshPreview = () -> preview.setText(machinePreview(
-                lootCheck.isSelected(), healCheck.isSelected(), telegramAttackCheck.isSelected()));
-        lootCheck.addActionListener(e -> refreshPreview.run());
-        healCheck.addActionListener(e -> refreshPreview.run());
-        telegramAttackCheck.addActionListener(e -> refreshPreview.run());
-
-        // Only the TASK2 panel exposes the generator; plain TASK keeps the fixed
-        // loot+heal behavior (the checkbox defaults above already encode it).
         if (withGenerator) {
-            JPanel generator = UiUtils.category("14. Akcje maszyny (generator)");
-            generator.add(lootCheck);
-            generator.add(healCheck);
-            generator.add(telegramAttackCheck);
-            generator.add(preview);
+            JTextField loopColor = UiUtils.rgb("");
+            JPanel loopList = UiUtils.verticalBox();
+
+            Runnable refreshLoop = () -> {
+                loopList.removeAll();
+                if (loopSteps.isEmpty()) {
+                    loopList.add(UiUtils.row("(pusto - dodaj kroki)"));
+                } else {
+                    for (int i = 0; i < loopSteps.size(); i++) {
+                        PatrolStep s = loopSteps.get(i);
+                        JLabel swatch = new JLabel();
+                        swatch.setOpaque(true);
+                        swatch.setBackground(s.color());
+                        swatch.setPreferredSize(new Dimension(18, 14));
+                        String typ = switch (s.type()) {
+                            case RUN -> "BIEG";
+                            case RUN_ATTACK -> "BIEG+ATAK";
+                            case ROPE_DOWN -> "ROPE DOWN";
+                            case LADDER_UP -> "LADDER UP";
+                            case ROPE_UP -> "ROPE UP";
+                        };
+                        String rgb = s.color().getRed() + "," + s.color().getGreen() + "," + s.color().getBlue();
+                        String info = s.isWaypoint() ? "(zolty marker)" : "(" + rgb + ")";
+                        loopList.add(UiUtils.row((i + 1) + ".", swatch, typ + "  " + info));
+                    }
+                }
+                loopList.revalidate();
+                loopList.repaint();
+            };
+
+            JButton addAtk = new JButton("+ BIEG+ATAK");
+            JButton addRun = new JButton("+ BIEG");
+            JButton addRopeDown = new JButton("+ ROPE DOWN");
+            JButton addLadderUp = new JButton("+ LADDER UP");
+            JButton addRopeUp = new JButton("+ ROPE UP");
+            JButton delLast = new JButton("Usun ostatni");
+            JButton clearAll = new JButton("Wyczysc");
+            JButton runLoop = new JButton("URUCHOM PETLE");
+            runLoop.setBackground(Color.GREEN);
+
+            // Color steps read the R,G,B field; waypoint steps use the fixed
+            // yellow marker, so they ignore the field.
+            addAtk.addActionListener(e -> {
+                try {
+                    loopSteps.add(PatrolStep.attack(UiUtils.parseColor(loopColor.getText())));
+                    refreshLoop.run();
+                } catch (NumberFormatException ex) {
+                    System.out.println("Zly kolor - podaj R,G,B");
+                }
+            });
+            addRun.addActionListener(e -> {
+                try {
+                    loopSteps.add(PatrolStep.run(UiUtils.parseColor(loopColor.getText())));
+                    refreshLoop.run();
+                } catch (NumberFormatException ex) {
+                    System.out.println("Zly kolor - podaj R,G,B");
+                }
+            });
+            addRopeDown.addActionListener(e -> {
+                loopSteps.add(PatrolStep.ropeDown());
+                refreshLoop.run();
+            });
+            addLadderUp.addActionListener(e -> {
+                loopSteps.add(PatrolStep.ladderUp());
+                refreshLoop.run();
+            });
+            addRopeUp.addActionListener(e -> {
+                loopSteps.add(PatrolStep.ropeUp());
+                refreshLoop.run();
+            });
+            delLast.addActionListener(e -> {
+                if (!loopSteps.isEmpty()) {
+                    loopSteps.remove(loopSteps.size() - 1);
+                    refreshLoop.run();
+                }
+            });
+            clearAll.addActionListener(e -> {
+                loopSteps.clear();
+                refreshLoop.run();
+            });
+            runLoop.addActionListener(e -> startRef[0].run());
+
+            // Quick-pick palette: swatch + R,G,B; clicking fills the color field.
+            String[] palette = { "1,1,240", "227,0,15", "68,206,87", "247,148,28" };
+            List<Object> palParts = new ArrayList<>();
+            palParts.add("szablony:");
+            for (String rgb : palette) {
+                Color c;
+                try {
+                    c = UiUtils.parseColor(rgb);
+                } catch (NumberFormatException ex) {
+                    continue;
+                }
+                JLabel sw = new JLabel();
+                sw.setOpaque(true);
+                sw.setBackground(c);
+                sw.setPreferredSize(new Dimension(16, 14));
+                JButton pick = new JButton(rgb);
+                pick.setMargin(new java.awt.Insets(1, 4, 1, 4));
+                pick.addActionListener(e -> loopColor.setText(rgb));
+                palParts.add(sw);
+                palParts.add(pick);
+            }
+
+            JPanel generator = UiUtils.category("14. Generator petli");
+            generator.add(UiUtils.row("kolor R,G,B:", loopColor, addAtk, addRun));
+            generator.add(UiUtils.row(palParts.toArray()));
+            generator.add(UiUtils.row("zolty marker:", addRopeDown, addLadderUp, addRopeUp));
+            generator.add(UiUtils.row(delLast, clearAll, runLoop));
+            generator.add(loopList);
             panel.add(generator);
+            refreshLoop.run();
         }
 
         JPanel buttonPanel = new JPanel(new GridLayout(1, 3));
@@ -240,7 +358,7 @@ public final class TaskWindow {
             stopButton.setBackground(Color.RED);
         };
 
-        startButton.addActionListener(e -> {
+        Runnable startAction = () -> {
             TaskConfig config;
             try {
                 int[][] lootTiles = new int[][] {
@@ -257,14 +375,11 @@ public final class TaskWindow {
 
                 String token = settings.get("telegramToken");
                 String chatId = settings.get("telegramChatId");
-                config = TaskConfig.builder()
+                TaskConfig.Builder b = TaskConfig.builder()
                         .minimap(UiUtils.parseInt(mapX), UiUtils.parseInt(mapY),
                                 UiUtils.parseInt(mapW), UiUtils.parseInt(mapH))
                         .colorTolerance(UiUtils.parseInt(tolerance))
                         .arriveThreshold(UiUtils.parseInt(arrive))
-                        .points(UiUtils.parseColor(point1Color.getText()),
-                                UiUtils.parseColor(point2Color.getText()),
-                                UiUtils.parseColor(point3Color.getText()))
                         .target(UiUtils.parseInt(targetX), UiUtils.parseInt(targetY),
                                 UiUtils.parseColor(targetColor.getText()))
                         .robak(UiUtils.parseInt(robakX), UiUtils.parseInt(robakY),
@@ -276,10 +391,25 @@ public final class TaskWindow {
                                 UiUtils.parseColor(healColor.getText()))
                         .telegram(token == null ? "" : token.trim(),
                                 chatId == null ? "" : chatId.trim())
-                        .lootEnabled(lootCheck.isSelected())
-                        .healEnabled(healCheck.isSelected())
-                        .telegramOnAttack(telegramAttackCheck.isSelected())
-                        .build();
+                        .lootEnabled(true)
+                        .telegramOnLoot(lootCheck.isSelected())
+                        .healEnabled(true)
+                        .telegramOnAttack(telegramAttackCheck.isSelected());
+
+                if (withGenerator) {
+                    // TASK2: drive the user-built loop. Empty list = nothing to do.
+                    if (loopSteps.isEmpty()) {
+                        System.out.println("Pusta petla - dodaj kroki w generatorze (panel 14).");
+                        return;
+                    }
+                    b.steps(new ArrayList<>(loopSteps));
+                } else {
+                    // Plain TASK: classic ping-pong derived from the three marks.
+                    b.points(UiUtils.parseColor(point1Color.getText()),
+                            UiUtils.parseColor(point2Color.getText()),
+                            UiUtils.parseColor(point3Color.getText()));
+                }
+                config = b.build();
             } catch (NumberFormatException ex) {
                 System.out.println("Please enter valid TASK numbers.");
                 return;
@@ -289,8 +419,10 @@ public final class TaskWindow {
             watcherRef[0] = startColorWatcher(ebeX, ebeY, ebeColor, 5000L, stopAction);
             startButton.setBackground(Color.GREEN);
             stopButton.setBackground(null);
-        });
+        };
+        startRef[0] = startAction;
 
+        startButton.addActionListener(e -> startAction.run());
         stopButton.addActionListener(e -> stopAction.run());
         closeButton.addActionListener(e -> {
             controller.stop();
@@ -316,30 +448,6 @@ public final class TaskWindow {
         frame.add(new JScrollPane(northHold), BorderLayout.CENTER);
         frame.add(buttonPanel, BorderLayout.SOUTH);
         frame.setVisible(true);
-    }
-
-    /** Renders the assembled state machine as text for the generator preview. */
-    private static String machinePreview(boolean loot, boolean heal, boolean telegram) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("WALK   szukaj punktu -> klik -> auto-chodzenie\n");
-        sb.append("   |  dotarl (dist <= arrive)\n");
-        sb.append("   v\n");
-        sb.append("ATTACK bialy? -> SPACJA");
-        if (telegram) {
-            sb.append(" + Telegram");
-        }
-        sb.append("\n");
-        if (loot) {
-            sb.append("       brak potwora? -> zbierz LOOT 1-9 -> dalej\n");
-        } else {
-            sb.append("       brak potwora? -> (loot OFF) -> dalej\n");
-        }
-        sb.append("   |\n");
-        sb.append("   v\n");
-        sb.append("WALK   nastepny punkt (ping-pong 1,2,3,2)\n");
-        sb.append("\n");
-        sb.append("Rownolegle: ").append(heal ? "HEAL co ~4.5s" : "(heal OFF)");
-        return sb.toString();
     }
 
     private static Thread startColorWatcher(JTextField ebeX, JTextField ebeY, JTextField ebeColor, long intervalMs,

@@ -63,6 +63,8 @@ final class UiUtils {
         for (Object part : parts) {
             if (part instanceof JTextField field) {
                 r.add(field);
+            } else if (part instanceof Component c) {
+                r.add(c);
             } else {
                 r.add(new JLabel(String.valueOf(part)));
             }
