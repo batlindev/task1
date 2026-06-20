@@ -380,6 +380,9 @@ public final class TaskPanel {
 
         startButton.addActionListener(e -> startAction.run());
         stopButton.addActionListener(e -> stopAction.run());
+
+        // Globalny STOP: srodkowy przycisk myszy z dowolnego okna (gra ma fokus, nie bot).
+        com.example.util.GlobalStopHotkey.install(stopAction);
         buttonPanel.add(startButton);
         buttonPanel.add(stopButton);
 

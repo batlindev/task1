@@ -18,7 +18,15 @@ mvn exec:java
 java -jar target/demo-1.0-SNAPSHOT.jar
 ```
 
-Java 17, no external dependencies — pure Java SE + Swing. No test suite.
+Java 17, pure Java SE + Swing. No test suite.
+
+### External dependency exception
+
+The project is otherwise dependency-free, with **one** exception:
+
+- **`com.github.kwhat:jnativehook:2.2.2`** — OS-level global input hook, used only by `GlobalStopHotkey` for the system-wide **middle-mouse-button = STOP** panic trigger. Needed because Swing input bindings fire only when the bot window is focused, but while botting the game window holds focus, so no pure-Java shortcut can catch the event. The bot itself only uses left/right clicks, so its own actions can never trip the stop.
+
+`mvn package` runs the **maven-shade-plugin** to fold this dependency (and its bundled native `.so`/`.dll`) into `demo-1.0-SNAPSHOT.jar`, so `jpackage` still builds a self-contained `.deb`/`.msi` from that single jar (the release workflow is unchanged). Do not add further dependencies without the same justification.
 
 ## Configuration
 

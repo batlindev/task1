@@ -38,6 +38,18 @@ public final class TaskPixelTrackerTask extends RobotTask {
     // stand on it — so "was walking, now gone" means we arrived.
     private boolean clickedTowardCurrent = false;
 
+    // Last distance (minimap px) at which we still SAW the current waypoint's
+    // marker. Guards the "vanished = arrived" rule: a marker only counts as
+    // stepped-on if it was already close when it disappeared. A marker that
+    // vanishes while still far away left the minimap range — that is NOT arrival.
+    private int lastWaypointDist = Integer.MAX_VALUE;
+
+    // Slack over arriveThreshold for the vanish-arrival check. The last visible
+    // tick can read a hair past the threshold before the final step lands on the
+    // marker, so allow a few px. Out-of-range vanish (dist ~ mapW/2) is far above
+    // this, so the two cases stay cleanly separated.
+    private static final int VANISH_ARRIVE_SLACK = 8;
+
     // Loot timing at the kill moment: the loot message appears a beat AFTER the
     // monster dies, so wait before scanning; then settle before walking off.
     private static final long LOOT_APPEAR_MS = 400;
@@ -85,6 +97,7 @@ public final class TaskPixelTrackerTask extends RobotTask {
         seqPos = (seqPos + 1) % config.steps.size();
         step = TaskFlowStep.WALK;
         clickedTowardCurrent = false;
+        lastWaypointDist = Integer.MAX_VALUE;
     }
 
     private void walkToward(int pointNumber, PatrolStep current) {
@@ -95,12 +108,20 @@ public final class TaskPixelTrackerTask extends RobotTask {
         Point center = scanner.center();
 
         if (mark == null) {
-            // Yellow marker we were walking toward disappeared = we stepped onto
-            // it (the player cross now covers it). Treat as arrival.
-            if (current.isWaypoint() && clickedTowardCurrent) {
-                System.out.printf("%s TASK [punkt %d] marker zniknal → DOTARLEM (stoje na nim)%n",
-                        LocalTime.now(), pointNumber);
+            // Yellow marker we were walking toward disappeared. This means we
+            // stepped onto it (the player cross now covers it) ONLY if it was
+            // already close last time we saw it. A marker that vanishes while
+            // still far away simply scrolled off the minimap — not arrival.
+            if (current.isWaypoint() && clickedTowardCurrent
+                    && lastWaypointDist <= config.arriveThreshold + VANISH_ARRIVE_SLACK) {
+                System.out.printf("%s TASK [punkt %d] marker zniknal (ostatni dist=%d) → DOTARLEM (stoje na nim)%n",
+                        LocalTime.now(), pointNumber, lastWaypointDist);
                 onArrived(pointNumber, current);
+                return;
+            }
+            if (current.isWaypoint() && clickedTowardCurrent) {
+                System.out.printf("%s TASK [punkt %d] marker zniknal ale ostatni dist=%d za duzy → POZA ZASIEGIEM, czekam%n",
+                        LocalTime.now(), pointNumber, lastWaypointDist);
                 return;
             }
             System.out.printf("%s TASK [punkt %d] znacznik (%d,%d,%d) POZA ZASIEGIEM minimapy → czekam%n",
@@ -110,6 +131,9 @@ public final class TaskPixelTrackerTask extends RobotTask {
         }
 
         int dist = TaskMapScanner.distance(mark, center);
+        if (current.isWaypoint()) {
+            lastWaypointDist = dist;
+        }
         System.out.printf("%s TASK [punkt %d] znacznik ekran=(%d,%d) srodek=(%d,%d) dist=%d%n",
                 LocalTime.now(), pointNumber, mark.x, mark.y, center.x, center.y, dist);
 

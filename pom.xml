@@ -14,15 +14,14 @@
         <exec.mainClass>com.example.Main</exec.mainClass>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-    </repositories>
-
     <dependencies>
-        <!-- Inne zależności mogą być dodane tutaj -->
+        <!-- Globalny (systemowy) skrot STOP — jedyna zewnetrzna zaleznosc.
+             Patrz CLAUDE.md "External dependency exception". -->
+        <dependency>
+            <groupId>com.github.kwhat</groupId>
+            <artifactId>jnativehook</artifactId>
+            <version>2.2.2</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -31,6 +30,31 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
+            </plugin>
+            <!-- Uber-jar: wpakowuje jnativehook (z jego natywnymi .so/.dll)
+                 do demo-1.0-SNAPSHOT.jar, by jpackage zbudowal samodzielny
+                 .deb/.msi z tylko jednym jar na wejsciu. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <transformers>
+                                <transformer
+                                    implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.example.Main</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
