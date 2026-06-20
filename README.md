@@ -32,6 +32,12 @@ Uninstall: `sudo dpkg -r bear`
 > Latest changes at the top.
 
 <!-- AUTO-CHANGELOG:START -->
+### 2026-06-21
+- ✨ **feat** — generator trasy: kroki jako karty z przesuwaniem (↑/↓), usuwaniem pojedynczego kroku i wizualnymi grupami o nazwach wpisywanych przez usera (czysto wizualne, nie wpływają na działanie)
+- ✨ **feat** — nowy kolor w palecie szybkiego wyboru (`88,35,4`)
+- ✨ **feat** — log każdego inputu (klik / klawisz) z czasem zawsze z lewej i opisem akcji (`walk` / `waypoint` / `loot` / `heal`), przez wspólne helpery `Log` i `RobotActions`
+- 📝 **docs** — czytelny opis po polsku w logu `ColorWatcher` (na co czeka i co zrobi gdy kolor się zgodzi)
+
 ### 2026-06-19
 - ♻️ **refactor** — the old generic bot classes (`BotController`, `PixelTrackerTask`, `HealTask`, `PressXTask`, `TelegramAutoClickTask`) moved to the `com.example.bot.legacy` package
 - 📦 **dist** — Release `v1.1`: Windows installer `.msi` (47 MB) + Linux `.deb` (34 MB), Java included

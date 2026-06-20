@@ -4,10 +4,10 @@ import java.awt.Color;
 import java.awt.Point;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
-import java.time.LocalTime;
 
 import com.example.config.PatrolStep;
 import com.example.config.TaskConfig;
+import com.example.util.Log;
 import com.example.util.RobotActions;
 import com.example.util.RobotTask;
 import com.example.util.TelegramClient;
@@ -20,7 +20,7 @@ import com.example.util.TelegramClient;
  * where it sits (the game auto-walks there), and treat "mark reached center" as
  * arrival. Then we advance to the next point in the ping-pong sequence.
  *
- * Loot is collected synchronously at the kill moment (see {@link #collectLoot}):
+ * Loot is collected synchronously at the kill moment (see {@link #grabLootIfPresent}):
  * when the point is cleared we stand still, wait for the loot message to pop,
  * grab it, then move on — so the player never walks off before looting.
  */
@@ -75,6 +75,11 @@ public final class TaskPixelTrackerTask extends RobotTask {
     // Pause after each loot-tile right-click. Same for every tile.
     private static final long LOOT_TILE_MS = 200;
 
+    // Throttle for the "waiting" attack log: print the stuck-state pixels only on
+    // the first waiting tick, reset whenever we swing, so a point that never
+    // clears is visible without spamming every tick.
+    private boolean waitingLogged = false;
+
     // Human-paced timing for the click/key actions of LADDER_UP and ROPE_UP. The
     // whole sequence is spread out (settle after arrival, hold keys/buttons, settle
     // after each mouse move) so it does not fire instantly like a macro (~0.7-1s).
@@ -106,10 +111,6 @@ public final class TaskPixelTrackerTask extends RobotTask {
         PatrolStep current = config.steps.get(seqPos);
         int pointNumber = seqPos + 1;
 
-        System.out.printf("%s [DIAG] tick: seqPos=%d/%d type=%s flow=%s color=(%d,%d,%d)%n",
-                LocalTime.now(), seqPos, config.steps.size(), current.type(), step,
-                current.color().getRed(), current.color().getGreen(), current.color().getBlue());
-
         switch (step) {
             case WALK:
                 walkToward(pointNumber, current);
@@ -127,13 +128,14 @@ public final class TaskPixelTrackerTask extends RobotTask {
         clickedTowardCurrent = false;
         lastSeenDist = Integer.MAX_VALUE;
         stalledTicks = 0;
+        waitingLogged = false;
     }
 
     private void walkToward(int pointNumber, PatrolStep current) {
         // Attack-in-place: no approach, jump straight to the ATTACK phase and
         // swing where we already stand.
         if (current.type() == PatrolStep.Type.ATTACK_ONLY) {
-            System.out.printf("  [point %d] ATTACK in place (without walking up) → attacking%n", pointNumber);
+            Log.action("p%d ATTACK in place", pointNumber);
             step = TaskFlowStep.ATTACK;
             return;
         }
@@ -163,43 +165,48 @@ public final class TaskPixelTrackerTask extends RobotTask {
             if (clickedTowardCurrent) {
                 int arrivePx = current.isWaypoint() ? WAYPOINT_ARRIVE_PX : config.arriveThreshold;
                 if (lastSeenDist <= arrivePx + VANISH_ARRIVE_SLACK) {
-                    System.out.printf("%s TASK [point %d] mark vanished (last dist=%d) → ARRIVED (standing on it)%n",
-                            LocalTime.now(), pointNumber, lastSeenDist);
+                    Log.action("p%d mark vanished (dist=%d) → ARRIVED", pointNumber, lastSeenDist);
                     onArrived(pointNumber, current);
-                    return;
                 }
-                System.out.printf("%s TASK [point %d] mark vanished but last dist=%d too large → OUT OF RANGE, waiting%n",
-                        LocalTime.now(), pointNumber, lastSeenDist);
+                // else: vanished while far = scrolled off minimap, keep waiting (no log).
                 return;
             }
-            System.out.printf("%s TASK [point %d] mark (%d,%d,%d) OUT OF minimap RANGE → waiting%n",
-                    LocalTime.now(), pointNumber,
-                    target.getRed(), target.getGreen(), target.getBlue());
             return;
         }
 
         int dist = TaskMapScanner.distance(mark, center);
         int prevDist = lastSeenDist;
         lastSeenDist = dist;
-        System.out.printf("%s TASK [point %d] marker screen=(%d,%d) center=(%d,%d) dist=%d%n",
-                LocalTime.now(), pointNumber, mark.x, mark.y, center.x, center.y, dist);
 
         if (current.isWaypoint()) {
             // Waypoint actions (rope/ladder/drop) fire when the white cross sits ON
             // the marker tile = the marker is within WAYPOINT_ARRIVE_PX of center.
-            // The yellow pixel does NOT reliably vanish when stood on (it can sit
-            // 1px off center forever), so distance — not vanish — is the signal.
-            // The threshold is tight so one tile off (~4px) keeps walking instead
-            // of firing the action a tile away and desyncing the bot.
             if (dist <= WAYPOINT_ARRIVE_PX) {
-                System.out.printf("  [point %d] cross on yellow (dist=%d ≤ %d) → ARRIVED%n",
-                        pointNumber, dist, WAYPOINT_ARRIVE_PX);
                 onArrived(pointNumber, current);
-            } else {
-                System.out.printf("  [point %d] yellow visible (dist=%d) → walking up to center%n",
-                        pointNumber, dist);
-                RobotActions.clickMouse(robot, mark.x, mark.y);
+                return;
+            }
+            // Click the yellow ONCE, precisely; the single auto-walk click already
+            // paths the player to that exact tile. Re-clicking every tick would
+            // re-target the marker as it slides toward center while we walk, which
+            // jitters the final position and misses the tile — so after the first
+            // click we only SCAN (fast ticks, no click) and wait for arrival.
+            if (!clickedTowardCurrent) {
+                Log.action("p%d waypoint → click yellow once (dist=%d), then scan-only", pointNumber, dist);
+                RobotActions.clickMouse(robot, mark.x, mark.y, "waypoint p" + pointNumber);
                 clickedTowardCurrent = true;
+                stalledTicks = 0;
+                return;
+            }
+            // Already walking from the single click: just watch. Recover only if the
+            // path is blocked — dist stops shrinking for STALL_GIVEUP_TICKS — by
+            // re-clicking once. This fires only while far + frozen, never near
+            // center, so it cannot reintroduce the close-range jitter.
+            if (dist < prevDist) {
+                stalledTicks = 0;
+            } else if (++stalledTicks >= STALL_GIVEUP_TICKS) {
+                Log.action("p%d waypoint stalled (dist=%d) → recovery click", pointNumber, dist);
+                RobotActions.clickMouse(robot, mark.x, mark.y, "waypoint-recovery p" + pointNumber);
+                stalledTicks = 0;
             }
             return;
         }
@@ -214,13 +221,11 @@ public final class TaskPixelTrackerTask extends RobotTask {
         if (dist < prevDist) {
             stalledTicks = 0;
         } else if (++stalledTicks >= STALL_GIVEUP_TICKS) {
-            System.out.printf("%s TASK [point %d] STUCK (dist=%d not shrinking for %d ticks, mark unreachable?) → skipping to next step%n",
-                    LocalTime.now(), pointNumber, dist, stalledTicks);
+            Log.action("p%d STUCK (dist=%d unreachable?) → skip to next", pointNumber, dist);
             advance();
             return;
         }
-        System.out.printf("  [point %d] click (%d,%d) → auto-walk%n", pointNumber, mark.x, mark.y);
-        RobotActions.clickMouse(robot, mark.x, mark.y);
+        RobotActions.clickMouse(robot, mark.x, mark.y, "walk p" + pointNumber);
         clickedTowardCurrent = true;
     }
 
@@ -229,32 +234,32 @@ public final class TaskPixelTrackerTask extends RobotTask {
     private void onArrived(int pointNumber, PatrolStep current) {
         switch (current.type()) {
             case RUN_ATTACK:
-                System.out.printf("  [point %d] ARRIVED → attacking%n", pointNumber);
+                Log.action("p%d ARRIVED → attack", pointNumber);
                 step = TaskFlowStep.ATTACK;
                 break;
             case RUN:
-                System.out.printf("  [point %d] ARRIVED → RUN (without attack) → next%n", pointNumber);
+                Log.action("p%d ARRIVED → RUN → next", pointNumber);
                 advance();
                 break;
             case ROPE_DOWN:
                 // Standing on the marker already triggers rope-down; nothing more.
-                System.out.printf("  [point %d] ARRIVED → ROPE DOWN%n", pointNumber);
+                Log.action("p%d ARRIVED → ROPE DOWN", pointNumber);
                 advance();
                 break;
             case LADDER_UP:
-                System.out.printf("  [point %d] ARRIVED → LADDER UP (Ctrl+LMB dialog, then point 14)%n", pointNumber);
+                Log.action("p%d ARRIVED → LADDER UP", pointNumber);
                 ladderUp();
                 advance();
                 break;
             case ROPE_UP:
-                System.out.printf("  [point %d] ARRIVED → ROPE UP (V + LMB on loot 5)%n", pointNumber);
+                Log.action("p%d ARRIVED → ROPE UP", pointNumber);
                 ropeUp();
                 advance();
                 break;
             case STAIRS:
                 // Walked onto the right end of the yellow stair mark; stepping there
                 // takes us up. Nothing else to do.
-                System.out.printf("  [point %d] ARRIVED → STAIRS (right yellow)%n", pointNumber);
+                Log.action("p%d ARRIVED → STAIRS", pointNumber);
                 advance();
                 break;
         }
@@ -274,9 +279,6 @@ public final class TaskPixelTrackerTask extends RobotTask {
      * onto loot-tile 5 and Ctrl+left-click it (Control = the game's use-with
      * modifier) to open the use-dialog, and — if point 14 is configured — move onto
      * it and left-click to confirm.
-     *
-     * When tile 5 is unset there is nothing to use, so we bail; when point 14 is
-     * unset (it is optional) we just open the dialog and move on.
      */
     private void ladderUp() {
         // Ctrl+left-click target: loot tile 5. Nothing to use if it is unset.
@@ -298,6 +300,7 @@ public final class TaskPixelTrackerTask extends RobotTask {
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
         RobotActions.sleep(ACTION_HOLD_MS);
         robot.keyRelease(KeyEvent.VK_CONTROL);
+        Log.input("CLICK L+Ctrl (%d,%d)", use[0], use[1]);
 
         int[] p = config.ladderPoint;
         if (p == null) {
@@ -309,6 +312,7 @@ public final class TaskPixelTrackerTask extends RobotTask {
         robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
         RobotActions.sleep(ACTION_HOLD_MS);
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        Log.input("CLICK L (%d,%d)", p[0], p[1]);
     }
 
 
@@ -317,7 +321,6 @@ public final class TaskPixelTrackerTask extends RobotTask {
      * Human-paced like {@link #ladderUp()}: settle after arrival, press V (held a
      * beat) to arm the rope cursor, wait for the prompt, then move onto loot tile 5
      * and left-click — each step spaced out so it does not fire like a macro.
-     * No-op if tile 5 is unset.
      */
     private void ropeUp() {
         int[] t = tile5();
@@ -328,12 +331,14 @@ public final class TaskPixelTrackerTask extends RobotTask {
         robot.keyPress(KeyEvent.VK_V);
         RobotActions.sleep(ACTION_HOLD_MS);
         robot.keyRelease(KeyEvent.VK_V);
+        Log.input("KEY V (rope)");
         RobotActions.sleep(ACTION_DIALOG_MS);
         robot.mouseMove(t[0], t[1]);
         RobotActions.sleep(ACTION_MOVE_SETTLE_MS);
         robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
         RobotActions.sleep(ACTION_HOLD_MS);
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        Log.input("CLICK L (%d,%d)", t[0], t[1]);
     }
 
     private void attackIfNeeded(int pointNumber) {
@@ -342,14 +347,6 @@ public final class TaskPixelTrackerTask extends RobotTask {
         Color current = robot.getPixelColor(config.targetX, config.targetY);
         Color robak = robot.getPixelColor(config.robakX, config.robakY);
 
-        System.out.printf("%s [DIAG] ATTACK [point %d] target(%d,%d)=(%d,%d,%d) white?=%b | robak(%d,%d)=(%d,%d,%d) expected=(%d,%d,%d) match?=%b%n",
-                LocalTime.now(), pointNumber,
-                config.targetX, config.targetY, current.getRed(), current.getGreen(), current.getBlue(),
-                current.equals(Color.WHITE),
-                config.robakX, config.robakY, robak.getRed(), robak.getGreen(), robak.getBlue(),
-                config.robakColor.getRed(), config.robakColor.getGreen(), config.robakColor.getBlue(),
-                robak.equals(config.robakColor));
-
         if (current.equals(Color.WHITE)) {
             // Multi-monster: a corpse from a previous kill may already show loot
             // (gold). Grab it BEFORE swinging at the next monster, otherwise we
@@ -357,17 +354,14 @@ public final class TaskPixelTrackerTask extends RobotTask {
             if (config.lootEnabled) {
                 grabLootIfPresent(pointNumber);
             }
-            System.out.printf("%s TASK [point %d] pixel WHITE → SPACE%n", LocalTime.now(), pointNumber);
-            robot.keyPress(KeyEvent.VK_SPACE);
-            robot.keyRelease(KeyEvent.VK_SPACE);
+            RobotActions.pressKey(robot, KeyEvent.VK_SPACE, "SPACE (attack)");
+            waitingLogged = false;
             if (config.telegramOnAttack) {
-                System.out.printf("%s TASK [point %d] telegram: task attack%n", LocalTime.now(), pointNumber);
                 TelegramClient.sendMessage(config.telegramToken, config.telegramChatId, "task attack");
             }
         } else if (robak.equals(config.robakColor)) {
             int nextPointNumber = ((seqPos + 1) % config.steps.size()) + 1;
-            System.out.printf("%s TASK [point %d] no monster → loot, then go to point %d%n",
-                    LocalTime.now(), pointNumber, nextPointNumber);
+            Log.action("p%d cleared → loot, then p%d", pointNumber, nextPointNumber);
             // Point cleared: the last kill's loot pops a beat later, so wait,
             // grab it, then settle before walking off. The single worker thread
             // blocks here so the player cannot leave mid-loot.
@@ -377,9 +371,16 @@ public final class TaskPixelTrackerTask extends RobotTask {
                 RobotActions.sleep(LOOT_SETTLE_MS);
             }
             advance();
-        } else {
-            System.out.printf("%s [DIAG] ATTACK [point %d] WAITING (not white and robak!=robakColor) → stuck here until robak=robakColor%n",
-                    LocalTime.now(), pointNumber);
+        } else if (!waitingLogged) {
+            // Neither a monster on the target pixel nor the "cleared" ground color.
+            // Log the two pixels ONCE so a stuck point (clear never detected) is
+            // visible without spamming every tick.
+            Log.action("p%d waiting: target=(%d,%d,%d) white?=no | robak=(%d,%d,%d) need=(%d,%d,%d)",
+                    pointNumber,
+                    current.getRed(), current.getGreen(), current.getBlue(),
+                    robak.getRed(), robak.getGreen(), robak.getBlue(),
+                    config.robakColor.getRed(), config.robakColor.getGreen(), config.robakColor.getBlue());
+            waitingLogged = true;
         }
     }
 
@@ -393,19 +394,17 @@ public final class TaskPixelTrackerTask extends RobotTask {
         if (!loot.equals(config.lootColor)) {
             return;
         }
+        Log.action("p%d LOOT", pointNumber);
         if (config.lootTiles != null) {
             for (int i = 0; i < config.lootTiles.length; i++) {
                 int[] tile = config.lootTiles[i];
                 if (tile == null) {
                     continue;
                 }
-                robot.mouseMove(tile[0], tile[1]);
-                robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
-                robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+                RobotActions.rightClick(robot, tile[0], tile[1]);
                 RobotActions.sleep(LOOT_TILE_MS);
             }
         }
-        System.out.printf("%s TASK [point %d] collecting loot%n", LocalTime.now(), pointNumber);
         if (config.telegramOnLoot) {
             TelegramClient.sendMessage(config.telegramToken, config.telegramChatId, "task loot");
         }

@@ -6,11 +6,15 @@ import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.Robot;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -201,45 +205,59 @@ public final class TaskPanel {
         // + type (RUN ATTACK = walk then attack, RUN = walk only). The list cycles
         // linearly 1..N..1, so a ping-pong is just colors added in ping-pong order.
         List<PatrolStep> loopSteps = new ArrayList<>();
+        // Parallel to loopSteps: a user-typed group label per step ("" = ungrouped).
+        // Purely visual — consecutive steps sharing a label render inside one titled
+        // box so the route reads as named stages. The bot ignores groups entirely.
+        List<String> groupNames = new ArrayList<>();
 
         {
             JTextField loopColor = UiUtils.rgb("");
             JPanel loopList = UiUtils.verticalBox();
+            // Holder so the per-card buttons can call refresh from inside the very
+            // lambda that defines it (a plain local self-reference is illegal).
+            final Runnable[] refresh = new Runnable[1];
 
-            Runnable refreshLoop = () -> {
+            // Append a step (always ungrouped); reorder/group it afterwards.
+            java.util.function.Consumer<PatrolStep> addStep = s -> {
+                loopSteps.add(s);
+                groupNames.add("");
+                refresh[0].run();
+            };
+
+            refresh[0] = () -> {
                 loopList.removeAll();
-                for (int i = 0; i < loopSteps.size(); i++) {
-                    PatrolStep s = loopSteps.get(i);
-                    JLabel swatch = new JLabel();
-                    swatch.setOpaque(true);
-                    swatch.setBackground(s.color());
-                    swatch.setPreferredSize(new Dimension(18, 14));
-                    String typ = switch (s.type()) {
-                        case RUN -> "RUN";
-                        case RUN_ATTACK -> "RUN ATTACK";
-                        case ATTACK_ONLY -> "ATTACK IN PLACE";
-                        case ROPE_DOWN -> "ROPE DOWN";
-                        case LADDER_UP -> "LADDER UP";
-                        case ROPE_UP -> "ROPE UP";
-                        case STAIRS -> "STAIRS";
-                    };
-                    String rgb = s.color().getRed() + "," + s.color().getGreen() + "," + s.color().getBlue();
-                    String info = s.type() == PatrolStep.Type.ATTACK_ONLY ? "(in place)"
-                            : s.isWaypoint() ? "(yellow marker)" : "(" + rgb + ")";
-                    loopList.add(UiUtils.row((i + 1) + ".", swatch, typ + "  " + info));
+                // Keep labels aligned with steps (older presets may carry none).
+                while (groupNames.size() < loopSteps.size()) groupNames.add("");
+                while (groupNames.size() > loopSteps.size()) groupNames.remove(groupNames.size() - 1);
+                int i = 0;
+                while (i < loopSteps.size()) {
+                    String g = groupNames.get(i);
+                    if (g != null && !g.isBlank()) {
+                        // Maximal run of consecutive steps with the same label = one box.
+                        JPanel box = UiUtils.category(g);
+                        int j = i;
+                        while (j < loopSteps.size() && g.equals(groupNames.get(j))) {
+                            box.add(stepCard(j, loopSteps, groupNames, refresh));
+                            j++;
+                        }
+                        loopList.add(box);
+                        i = j;
+                    } else {
+                        loopList.add(stepCard(i, loopSteps, groupNames, refresh));
+                        i++;
+                    }
                 }
                 loopList.revalidate();
                 loopList.repaint();
             };
 
-            // Make the loop part of the preset: snapshot serializes the steps,
-            // apply rebuilds them. Default (no preset) = empty list.
+            // Steps and their group labels serialize together (one preset string),
+            // so they can never drift out of alignment. Default (no preset) = empty.
             settings.bindState(prefix + "loopSteps",
-                    () -> PatrolStep.encodeList(loopSteps),
+                    () -> encodeLoop(loopSteps, groupNames),
                     text -> {
-                        loopSteps.clear();
-                        loopSteps.addAll(PatrolStep.decodeList(text));
-                        refreshLoop.run();
+                        decodeLoop(text, loopSteps, groupNames);
+                        refresh[0].run();
                     });
 
             JButton addAtk = new JButton("+ RUN ATTACK");
@@ -256,55 +274,40 @@ public final class TaskPanel {
             // yellow marker, so they ignore the field.
             addAtk.addActionListener(e -> {
                 try {
-                    loopSteps.add(PatrolStep.attack(UiUtils.parseColor(loopColor.getText())));
-                    refreshLoop.run();
+                    addStep.accept(PatrolStep.attack(UiUtils.parseColor(loopColor.getText())));
                 } catch (NumberFormatException ex) {
                     System.out.println("Bad color - enter R,G,B");
                 }
             });
             addRun.addActionListener(e -> {
                 try {
-                    loopSteps.add(PatrolStep.run(UiUtils.parseColor(loopColor.getText())));
-                    refreshLoop.run();
+                    addStep.accept(PatrolStep.run(UiUtils.parseColor(loopColor.getText())));
                 } catch (NumberFormatException ex) {
                     System.out.println("Bad color - enter R,G,B");
                 }
             });
             // Attack-in-place: no color needed, just a swing where we stand.
-            addAtkOnly.addActionListener(e -> {
-                loopSteps.add(PatrolStep.attackOnly());
-                refreshLoop.run();
-            });
-            addRopeDown.addActionListener(e -> {
-                loopSteps.add(PatrolStep.ropeDown());
-                refreshLoop.run();
-            });
-            addLadderUp.addActionListener(e -> {
-                loopSteps.add(PatrolStep.ladderUp());
-                refreshLoop.run();
-            });
-            addRopeUp.addActionListener(e -> {
-                loopSteps.add(PatrolStep.ropeUp());
-                refreshLoop.run();
-            });
-            addStairs.addActionListener(e -> {
-                loopSteps.add(PatrolStep.stairs());
-                refreshLoop.run();
-            });
+            addAtkOnly.addActionListener(e -> addStep.accept(PatrolStep.attackOnly()));
+            addRopeDown.addActionListener(e -> addStep.accept(PatrolStep.ropeDown()));
+            addLadderUp.addActionListener(e -> addStep.accept(PatrolStep.ladderUp()));
+            addRopeUp.addActionListener(e -> addStep.accept(PatrolStep.ropeUp()));
+            addStairs.addActionListener(e -> addStep.accept(PatrolStep.stairs()));
             delLast.addActionListener(e -> {
                 if (!loopSteps.isEmpty()) {
                     loopSteps.remove(loopSteps.size() - 1);
-                    refreshLoop.run();
+                    groupNames.remove(groupNames.size() - 1);
+                    refresh[0].run();
                 }
             });
             clearAll.addActionListener(e -> {
                 loopSteps.clear();
-                refreshLoop.run();
+                groupNames.clear();
+                refresh[0].run();
             });
 
             // Quick-pick palette: a clickable swatch per preset; clicking fills the
             // color field. The R,G,B value lives in the tooltip, not on the face.
-            String[] palette = { "1,1,240", "227,0,15", "68,206,87", "247,148,28", "192,192,192" };
+            String[] palette = { "1,1,240", "227,0,15", "68,206,87", "247,148,28", "192,192,192", "88,35,4" };
             List<Object> palParts = new ArrayList<>();
             for (String rgb : palette) {
                 Color c;
@@ -338,7 +341,7 @@ public final class TaskPanel {
             generator.add(loopList);
             // Collapsible like the others, but open by default.
             panel.add(UiUtils.collapsible("Route generator", generator, true));
-            refreshLoop.run();
+            refresh[0].run();
         }
 
         JPanel buttonPanel = new JPanel(new GridLayout(1, 2));
@@ -429,6 +432,137 @@ public final class TaskPanel {
         return panel;
     }
 
+    /**
+     * One step rendered as a graphical card: index, color swatch, type, a group
+     * name field, and ↑/↓/✕ controls. Reorder and group edits mutate {@code steps}
+     * and {@code groups} in lock-step, then call {@code refresh[0]} to rebuild.
+     */
+    private static JPanel stepCard(int idx, List<PatrolStep> steps, List<String> groups, Runnable[] refresh) {
+        PatrolStep s = steps.get(idx);
+
+        JLabel swatch = new JLabel();
+        swatch.setOpaque(true);
+        swatch.setBackground(s.color());
+        swatch.setPreferredSize(new Dimension(18, 14));
+        swatch.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+
+        String typ = switch (s.type()) {
+            case RUN -> "RUN";
+            case RUN_ATTACK -> "RUN ATTACK";
+            case ATTACK_ONLY -> "ATTACK IN PLACE";
+            case ROPE_DOWN -> "ROPE DOWN";
+            case LADDER_UP -> "LADDER UP";
+            case ROPE_UP -> "ROPE UP";
+            case STAIRS -> "STAIRS";
+        };
+        String rgb = s.color().getRed() + "," + s.color().getGreen() + "," + s.color().getBlue();
+        String info = s.type() == PatrolStep.Type.ATTACK_ONLY ? "(in place)"
+                : s.isWaypoint() ? "(yellow)" : "(" + rgb + ")";
+
+        JTextField groupField = new JTextField(idx < groups.size() ? groups.get(idx) : "", 8);
+        groupField.setToolTipText("Nazwa grupy (puste = brak). Kolejne kroki z tą samą nazwą tworzą jedną wizualną grupę. Nie wpływa na działanie bota.");
+        Runnable commit = () -> {
+            if (idx >= groups.size()) {
+                return;
+            }
+            String v = sanitizeGroup(groupField.getText());
+            if (!v.equals(groups.get(idx))) {
+                groups.set(idx, v);
+                refresh[0].run();
+            }
+        };
+        groupField.addActionListener(e -> commit.run());
+        groupField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                commit.run();
+            }
+        });
+
+        JButton up = miniBtn("↑");
+        up.setEnabled(idx > 0);
+        up.addActionListener(e -> {
+            Collections.swap(steps, idx, idx - 1);
+            Collections.swap(groups, idx, idx - 1);
+            refresh[0].run();
+        });
+        JButton down = miniBtn("↓");
+        down.setEnabled(idx < steps.size() - 1);
+        down.addActionListener(e -> {
+            Collections.swap(steps, idx, idx + 1);
+            Collections.swap(groups, idx, idx + 1);
+            refresh[0].run();
+        });
+        JButton del = miniBtn("✕");
+        del.addActionListener(e -> {
+            steps.remove(idx);
+            groups.remove(idx);
+            refresh[0].run();
+        });
+
+        JPanel card = UiUtils.row((idx + 1) + ".", swatch, typ + "  " + info, "grupa:", groupField, up, down, del);
+        card.setBorder(BorderFactory.createLineBorder(new Color(210, 210, 210)));
+        return card;
+    }
+
+    private static JButton miniBtn(String text) {
+        JButton b = new JButton(text);
+        b.setMargin(new Insets(1, 5, 1, 5));
+        b.setFocusable(false);
+        return b;
+    }
+
+    /** Strip the two reserved separators ({@code ;} and {@code @}) from a group
+     *  name so it survives serialization without escaping. */
+    private static String sanitizeGroup(String raw) {
+        return raw == null ? "" : raw.replace(";", "").replace("@", "").trim();
+    }
+
+    /** Encode steps + group labels as {@code STEP@@group;STEP;STEP@@group...}.
+     *  A step with no group has no {@code @@} suffix (so old presets round-trip). */
+    private static String encodeLoop(List<PatrolStep> steps, List<String> groups) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < steps.size(); i++) {
+            if (sb.length() > 0) {
+                sb.append(';');
+            }
+            sb.append(steps.get(i).encode());
+            String g = i < groups.size() ? groups.get(i) : "";
+            if (g != null && !g.isEmpty()) {
+                sb.append("@@").append(g);
+            }
+        }
+        return sb.toString();
+    }
+
+    /** Parse {@link #encodeLoop} back into the two lists. Tokens without {@code @@}
+     *  (legacy presets) decode to an empty group label. Bad steps are skipped. */
+    private static void decodeLoop(String text, List<PatrolStep> steps, List<String> groups) {
+        steps.clear();
+        groups.clear();
+        if (text == null) {
+            return;
+        }
+        for (String part : text.split(";")) {
+            String p = part.trim();
+            if (p.isEmpty()) {
+                continue;
+            }
+            String g = "";
+            int at = p.indexOf("@@");
+            if (at >= 0) {
+                g = p.substring(at + 2);
+                p = p.substring(0, at);
+            }
+            try {
+                steps.add(PatrolStep.decode(p));
+                groups.add(g);
+            } catch (RuntimeException ex) {
+                System.out.println("Skipping bad loop step: " + part + " (" + ex.getMessage() + ")");
+            }
+        }
+    }
+
     private static Thread startColorWatcher(JTextField ebeX, JTextField ebeY, JTextField ebeColor, long intervalMs,
             Runnable onDetect) {
         Thread watcher = new Thread(() -> {
@@ -462,9 +596,13 @@ public final class TaskPanel {
                         target = new Color(58, 61, 63);
                     }
                     Color c = robot.getPixelColor(x, y);
-                    System.out.println("[ColorWatcher] Checking (" + x + "," + y + ") -> " + c);
-                    if (c.equals(target)) {
-                        System.out.println("[ColorWatcher] Detected target color at (" + x + "," + y + "), stopping task.");
+                    boolean match = c.equals(target);
+                    System.out.printf(
+                            "[ColorWatcher] ",
+                            x, y, target.getRed(), target.getGreen(), target.getBlue(),
+                            c.getRed(), c.getGreen(), c.getBlue(), match ? "TAK" : "nie");
+                    if (match) {
+                        System.out.printf("[ColorWatcher] Kolor docelowy wykryty w (%d,%d) → STOP bota.%n", x, y);
                         SwingUtilities.invokeLater(onDetect);
                         return;
                     }
