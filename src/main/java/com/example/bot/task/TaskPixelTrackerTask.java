@@ -342,34 +342,44 @@ public final class TaskPixelTrackerTask extends RobotTask {
     }
 
     private void attackIfNeeded(int pointNumber) {
-        robot.mouseMove(config.targetX, config.targetY);
+        // LOOT HAS PRIORITY. After a kill the loot indicator (config.lootColor,
+        // e.g. 255,180,0) shows at the bottom. While it is up we ONLY collect loot
+        // (right-click tiles 1-9) and do nothing else this tick — crucially we do
+        // NOT press SPACE, because attacking starts a chase that drags the player
+        // off the bodies before the loot is grabbed. Only once no loot is on the
+        // ground do we decide whether to attack the next monster or move on.
+        if (config.lootEnabled && lootPresent()) {
+            grabLootIfPresent(pointNumber);
+            waitingLogged = false;
+            return;
+        }
 
+        robot.mouseMove(config.targetX, config.targetY);
         Color current = robot.getPixelColor(config.targetX, config.targetY);
         Color robak = robot.getPixelColor(config.robakX, config.robakY);
 
         if (current.equals(Color.WHITE)) {
-            // Multi-monster: a corpse from a previous kill may already show loot
-            // (gold). Grab it BEFORE swinging at the next monster, otherwise we
-            // run off toward the next body and leave this loot behind.
-            if (config.lootEnabled) {
-                grabLootIfPresent(pointNumber);
-            }
+            // A monster is targeted on the attack tile and no loot is waiting → swing.
             RobotActions.pressKey(robot, KeyEvent.VK_SPACE, "SPACE (attack)");
             waitingLogged = false;
             if (config.telegramOnAttack) {
                 TelegramClient.sendMessage(config.telegramToken, config.telegramChatId, "task attack");
             }
         } else if (robak.equals(config.robakColor)) {
-            int nextPointNumber = ((seqPos + 1) % config.steps.size()) + 1;
-            Log.action("p%d cleared → loot, then p%d", pointNumber, nextPointNumber);
-            // Point cleared: the last kill's loot pops a beat later, so wait,
-            // grab it, then settle before walking off. The single worker thread
-            // blocks here so the player cannot leave mid-loot.
+            // No monster and no loot showing yet — but the last kill's loot pops a
+            // beat AFTER the body drops, so wait once and re-check before walking
+            // off. If loot appears, grab it (stay; loot-first handles the rest next
+            // tick); only a truly empty point advances.
             if (config.lootEnabled) {
                 RobotActions.sleep(LOOT_APPEAR_MS);
-                grabLootIfPresent(pointNumber);
-                RobotActions.sleep(LOOT_SETTLE_MS);
+                if (lootPresent()) {
+                    grabLootIfPresent(pointNumber);
+                    RobotActions.sleep(LOOT_SETTLE_MS);
+                    return;
+                }
             }
+            int nextPointNumber = ((seqPos + 1) % config.steps.size()) + 1;
+            Log.action("p%d cleared → p%d", pointNumber, nextPointNumber);
             advance();
         } else if (!waitingLogged) {
             // Neither a monster on the target pixel nor the "cleared" ground color.
@@ -382,6 +392,11 @@ public final class TaskPixelTrackerTask extends RobotTask {
                     config.robakColor.getRed(), config.robakColor.getGreen(), config.robakColor.getBlue());
             waitingLogged = true;
         }
+    }
+
+    /** True while the loot indicator pixel reads {@code lootColor} (loot waiting). */
+    private boolean lootPresent() {
+        return robot.getPixelColor(config.lootX, config.lootY).equals(config.lootColor);
     }
 
     /**

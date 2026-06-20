@@ -33,6 +33,9 @@ Uninstall: `sudo dpkg -r bear`
 
 <!-- AUTO-CHANGELOG:START -->
 ### 2026-06-21
+- 🐛 **fix** — zbieranie loota: loot ma priorytet przed atakiem (loot-first) — po zabiciu postać najpierw zbiera loot 1-9 i nie startuje pościgu, więc prawe kliki trafiają w ciała (był problem przy chase + kilku potworach)
+- ✨ **feat** — precyzja waypointów (rope-down / ladder): jeden celny klik w żółty znacznik, potem już tylko skan do dojścia, zamiast klikania co tick (mniej rozjazdu)
+- ♻️ **refactor** — czytelniejsze logi fazy walk/attack (mniej spamu, jednorazowy log `waiting:` do diagnozy zacięcia na punkcie)
 - ✨ **feat** — generator trasy: kroki jako karty z przesuwaniem (↑/↓), usuwaniem pojedynczego kroku i wizualnymi grupami o nazwach wpisywanych przez usera (czysto wizualne, nie wpływają na działanie)
 - ✨ **feat** — nowy kolor w palecie szybkiego wyboru (`88,35,4`)
 - ✨ **feat** — log każdego inputu (klik / klawisz) z czasem zawsze z lewej i opisem akcji (`walk` / `waypoint` / `loot` / `heal`), przez wspólne helpery `Log` i `RobotActions`
