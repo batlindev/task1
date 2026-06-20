@@ -304,7 +304,7 @@ public final class TaskPanel {
 
             // Quick-pick palette: a clickable swatch per preset; clicking fills the
             // color field. The R,G,B value lives in the tooltip, not on the face.
-            String[] palette = { "1,1,240", "227,0,15", "68,206,87", "247,148,28" };
+            String[] palette = { "1,1,240", "227,0,15", "68,206,87", "247,148,28", "192,192,192" };
             List<Object> palParts = new ArrayList<>();
             for (String rgb : palette) {
                 Color c;

@@ -38,11 +38,20 @@ public final class TaskPixelTrackerTask extends RobotTask {
     // stand on it — so "was walking, now gone" means we arrived.
     private boolean clickedTowardCurrent = false;
 
-    // Last distance (minimap px) at which we still SAW the current waypoint's
-    // marker. Guards the "vanished = arrived" rule: a marker only counts as
-    // stepped-on if it was already close when it disappeared. A marker that
-    // vanishes while still far away left the minimap range — that is NOT arrival.
-    private int lastWaypointDist = Integer.MAX_VALUE;
+    // Last distance (minimap px) at which we still SAW the current step's mark
+    // (yellow waypoint OR a picked color). Guards the "vanished = arrived" rule:
+    // a mark only counts as stepped-on if it was already close when it
+    // disappeared. A mark that vanishes while still far away left the minimap
+    // range — that is NOT arrival.
+    private int lastSeenDist = Integer.MAX_VALUE;
+
+    // Consecutive WALK ticks clicking toward a COLOR mark with no progress (dist
+    // not shrinking). A mark on unreachable terrain (water / blocked tile) makes
+    // the auto-walk click a no-op, so dist freezes and the bot would click it
+    // forever. After this many stalled ticks we give up and skip to the next
+    // step instead of hanging. Waypoints are exempt — they have the vanish rule.
+    private int stalledTicks = 0;
+    private static final int STALL_GIVEUP_TICKS = 8;
 
     // "Cross is on the marker tile" distance (minimap px). The white cross is
     // always at minimap center; a yellow marker sitting within this many px of
@@ -116,7 +125,8 @@ public final class TaskPixelTrackerTask extends RobotTask {
         seqPos = (seqPos + 1) % config.steps.size();
         step = TaskFlowStep.WALK;
         clickedTowardCurrent = false;
-        lastWaypointDist = Integer.MAX_VALUE;
+        lastSeenDist = Integer.MAX_VALUE;
+        stalledTicks = 0;
     }
 
     private void walkToward(int pointNumber, PatrolStep current) {
@@ -143,32 +153,34 @@ public final class TaskPixelTrackerTask extends RobotTask {
         Point center = scanner.center();
 
         if (mark == null) {
-            // Yellow marker we were walking toward disappeared. This means we
-            // stepped onto it (the player cross now covers it) ONLY if it was
-            // already close last time we saw it. A marker that vanishes while
-            // still far away simply scrolled off the minimap — not arrival.
-            if (current.isWaypoint() && clickedTowardCurrent
-                    && lastWaypointDist <= WAYPOINT_ARRIVE_PX + VANISH_ARRIVE_SLACK) {
-                System.out.printf("%s TASK [point %d] marker vanished (last dist=%d) → ARRIVED (standing on it)%n",
-                        LocalTime.now(), pointNumber, lastWaypointDist);
-                onArrived(pointNumber, current);
+            // The mark we were walking toward disappeared. This means we stepped
+            // onto it (the player cross now covers the pixel) ONLY if it was
+            // already close last time we saw it — true for yellow waypoints AND
+            // for a picked color mark that sits on a single tile. A mark that
+            // vanishes while still far away just scrolled off the minimap edge —
+            // not arrival, so keep waiting. A mark within (arrivePx + slack) of
+            // center can only have vanished by being covered, never by scrolling.
+            if (clickedTowardCurrent) {
+                int arrivePx = current.isWaypoint() ? WAYPOINT_ARRIVE_PX : config.arriveThreshold;
+                if (lastSeenDist <= arrivePx + VANISH_ARRIVE_SLACK) {
+                    System.out.printf("%s TASK [point %d] mark vanished (last dist=%d) → ARRIVED (standing on it)%n",
+                            LocalTime.now(), pointNumber, lastSeenDist);
+                    onArrived(pointNumber, current);
+                    return;
+                }
+                System.out.printf("%s TASK [point %d] mark vanished but last dist=%d too large → OUT OF RANGE, waiting%n",
+                        LocalTime.now(), pointNumber, lastSeenDist);
                 return;
             }
-            if (current.isWaypoint() && clickedTowardCurrent) {
-                System.out.printf("%s TASK [point %d] marker vanished but last dist=%d too large → OUT OF RANGE, waiting%n",
-                        LocalTime.now(), pointNumber, lastWaypointDist);
-                return;
-            }
-            System.out.printf("%s TASK [point %d] marker (%d,%d,%d) OUT OF minimap RANGE → waiting%n",
+            System.out.printf("%s TASK [point %d] mark (%d,%d,%d) OUT OF minimap RANGE → waiting%n",
                     LocalTime.now(), pointNumber,
                     target.getRed(), target.getGreen(), target.getBlue());
             return;
         }
 
         int dist = TaskMapScanner.distance(mark, center);
-        if (current.isWaypoint()) {
-            lastWaypointDist = dist;
-        }
+        int prevDist = lastSeenDist;
+        lastSeenDist = dist;
         System.out.printf("%s TASK [point %d] marker screen=(%d,%d) center=(%d,%d) dist=%d%n",
                 LocalTime.now(), pointNumber, mark.x, mark.y, center.x, center.y, dist);
 
@@ -194,11 +206,22 @@ public final class TaskPixelTrackerTask extends RobotTask {
 
         if (dist <= config.arriveThreshold) {
             onArrived(pointNumber, current);
-        } else {
-            System.out.printf("  [point %d] click (%d,%d) → auto-walk%n", pointNumber, mark.x, mark.y);
-            RobotActions.clickMouse(robot, mark.x, mark.y);
-            clickedTowardCurrent = true;
+            return;
         }
+        // No progress (dist not shrinking) = the click can't path here (mark on
+        // unreachable terrain — water/blocked). Bail after STALL_GIVEUP_TICKS so
+        // we don't click a dead mark forever; skip to the next step.
+        if (dist < prevDist) {
+            stalledTicks = 0;
+        } else if (++stalledTicks >= STALL_GIVEUP_TICKS) {
+            System.out.printf("%s TASK [point %d] STUCK (dist=%d not shrinking for %d ticks, mark unreachable?) → skipping to next step%n",
+                    LocalTime.now(), pointNumber, dist, stalledTicks);
+            advance();
+            return;
+        }
+        System.out.printf("  [point %d] click (%d,%d) → auto-walk%n", pointNumber, mark.x, mark.y);
+        RobotActions.clickMouse(robot, mark.x, mark.y);
+        clickedTowardCurrent = true;
     }
 
     /** Reached the target tile: dispatch the step's action, then advance (or

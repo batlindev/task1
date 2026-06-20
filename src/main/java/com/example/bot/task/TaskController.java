@@ -27,8 +27,9 @@ public final class TaskController {
         executor = Executors.newSingleThreadScheduledExecutor();
 
         // One state-machine step per tick; this delay is the gap between
-        // scan/click actions. ~600ms: responsive but not frantic.
-        long tickDelay = (long) (500 + Math.random() * 250);
+        // scan/click actions. ~250-450ms: snappy approach (less standing while
+        // walking up to a mark) but still randomized so it is not macro-regular.
+        long tickDelay = (long) (250 + Math.random() * 200);
         TaskPixelTrackerTask tracker = new TaskPixelTrackerTask(config);
         executor.scheduleWithFixedDelay(guard(tracker), 0, tickDelay, TimeUnit.MILLISECONDS);
 
