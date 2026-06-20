@@ -7,26 +7,28 @@ import javax.swing.SwingUtilities;
 
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.NativeHookException;
-import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
-import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
+import com.github.kwhat.jnativehook.mouse.NativeMouseEvent;
+import com.github.kwhat.jnativehook.mouse.NativeMouseListener;
 
 /**
- * System-wide STOP hotkey backed by JNativeHook — the one external dependency
+ * System-wide STOP trigger backed by JNativeHook — the one external dependency
  * (see CLAUDE.md "External dependency exception").
  *
- * Pure Java Swing key bindings only fire while the bot window is focused, but
+ * Pure Java Swing input bindings only fire while the bot window is focused, but
  * while botting the game window holds focus, so a Swing shortcut never fires.
- * JNativeHook installs an OS-level keyboard hook that catches the key no matter
- * which window is active, and never touches the keyboard output, so it cannot
- * conflict with the bot pressing its own keys.
+ * JNativeHook installs an OS-level input hook that catches the event no matter
+ * which window is active.
  *
- * The hook is installed once for the whole app session. Pressing the STOP key
- * runs {@code onStop} on the EDT — harmless when no bot is running.
+ * The trigger is the <b>middle mouse button</b> (wheel click): the hand is
+ * already on the mouse when the cursor goes haywire, and the bot itself only
+ * uses left/right clicks, so its own actions can never trip the panic stop.
+ * The hook is installed once for the whole app session; a middle click runs
+ * {@code onStop} on the EDT — harmless when no bot is running.
  */
 public final class GlobalStopHotkey {
 
-    /** Default STOP key: F12. */
-    public static final int STOP_KEY = NativeKeyEvent.VC_F12;
+    /** jnativehook: BUTTON1 = left, BUTTON2 = right, BUTTON3 = middle/wheel. */
+    private static final int STOP_BUTTON = NativeMouseEvent.BUTTON3;
 
     private static boolean installed = false;
 
@@ -47,16 +49,16 @@ public final class GlobalStopHotkey {
         try {
             GlobalScreen.registerNativeHook();
         } catch (NativeHookException ex) {
-            System.out.println("[GlobalStopHotkey] Nie udalo sie zarejestrowac globalnego skrotu: "
+            System.out.println("[GlobalStopHotkey] Nie udalo sie zarejestrowac globalnego hooka: "
                     + ex.getMessage());
             return;
         }
 
-        GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
+        GlobalScreen.addNativeMouseListener(new NativeMouseListener() {
             @Override
-            public void nativeKeyPressed(NativeKeyEvent e) {
-                if (e.getKeyCode() == STOP_KEY) {
-                    System.out.println("[GlobalStopHotkey] F12 wcisniety, STOP.");
+            public void nativeMousePressed(NativeMouseEvent e) {
+                if (e.getButton() == STOP_BUTTON) {
+                    System.out.println("[GlobalStopHotkey] Srodkowy przycisk myszy, STOP.");
                     SwingUtilities.invokeLater(onStop);
                 }
             }
@@ -73,6 +75,7 @@ public final class GlobalStopHotkey {
         }, "GlobalStopHotkey-shutdown"));
 
         installed = true;
-        System.out.println("[GlobalStopHotkey] Globalny STOP: F12 (dziala z dowolnego okna).");
+        System.out.println("[GlobalStopHotkey] Globalny STOP: srodkowy przycisk myszy "
+                + "(dziala z dowolnego okna).");
     }
 }
