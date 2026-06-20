@@ -24,7 +24,8 @@
       "Bash(echo \"hook up\")",
       "Bash(cd /home/batlin/doc/bear)",
       "Bash(pkill -f \"exec:java|com.example.Main\")",
-      "Bash(export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64)"
+      "Bash(export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64)",
+      "Bash(update-alternatives --list java)"
     ],
     "additionalDirectories": [
       "/tmp"

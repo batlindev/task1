@@ -22,17 +22,27 @@ public record PatrolStep(Type type, Color color) {
         RUN,
         /** Walk to color, then attack until the point is clear. */
         RUN_ATTACK,
+        /** Attack in place (no walk): swing/scan right where we already stand,
+         *  until the attack pixel reports the point is clear. */
+        ATTACK_ONLY,
         /** Step onto the nearest yellow marker (rope down happens automatically). */
         ROPE_DOWN,
-        /** Step onto yellow, then right-click loot-tile 5 (use ladder up). */
+        /** Step onto yellow, then Ctrl+left-click to open the use-dialog and
+         *  (optionally) confirm on point 14 — use ladder up. */
         LADDER_UP,
         /** Step onto yellow, press V, then left-click loot-tile 5 (use rope up). */
-        ROPE_UP
+        ROPE_UP,
+        /** Stairs: two adjacent yellow marks, step onto each until the floor
+         *  changes (detected by the stair marks disappearing). Always goes up. */
+        STAIRS
     }
 
     public static PatrolStep run(Color c) { return new PatrolStep(Type.RUN, c); }
 
     public static PatrolStep attack(Color c) { return new PatrolStep(Type.RUN_ATTACK, c); }
+
+    /** Attack-in-place: no color is walked to, so the color is a placeholder. */
+    public static PatrolStep attackOnly() { return new PatrolStep(Type.ATTACK_ONLY, WAYPOINT); }
 
     public static PatrolStep ropeDown() { return new PatrolStep(Type.ROPE_DOWN, WAYPOINT); }
 
@@ -40,9 +50,12 @@ public record PatrolStep(Type type, Color color) {
 
     public static PatrolStep ropeUp() { return new PatrolStep(Type.ROPE_UP, WAYPOINT); }
 
+    public static PatrolStep stairs() { return new PatrolStep(Type.STAIRS, WAYPOINT); }
+
     /** Yellow-marker steps locate the nearest marker to center, not a centroid. */
     public boolean isWaypoint() {
-        return type == Type.ROPE_DOWN || type == Type.LADDER_UP || type == Type.ROPE_UP;
+        return type == Type.ROPE_DOWN || type == Type.LADDER_UP || type == Type.ROPE_UP
+                || type == Type.STAIRS;
     }
 
     /**
@@ -50,7 +63,7 @@ public record PatrolStep(Type type, Color color) {
      * steps use the fixed yellow marker so they encode as bare {@code TYPE}.
      */
     public String encode() {
-        if (isWaypoint()) {
+        if (isWaypoint() || type == Type.ATTACK_ONLY) {
             return type.name();
         }
         return type.name() + ":" + color.getRed() + "," + color.getGreen() + "," + color.getBlue();
@@ -60,7 +73,11 @@ public record PatrolStep(Type type, Color color) {
     public static PatrolStep decode(String token) {
         String s = token.trim();
         int colon = s.indexOf(':');
-        Type t = Type.valueOf(colon < 0 ? s : s.substring(0, colon));
+        String head = colon < 0 ? s : s.substring(0, colon);
+        if (head.equals("SCHODY")) {        // legacy token: STAIRS used to be named SCHODY
+            return stairs();
+        }
+        Type t = Type.valueOf(head);
         switch (t) {
             case ROPE_DOWN:
                 return ropeDown();
@@ -68,6 +85,10 @@ public record PatrolStep(Type type, Color color) {
                 return ladderUp();
             case ROPE_UP:
                 return ropeUp();
+            case ATTACK_ONLY:
+                return attackOnly();
+            case STAIRS:
+                return stairs();
             default:
                 return new PatrolStep(t, parseColor(s.substring(colon + 1)));
         }
@@ -98,7 +119,7 @@ public record PatrolStep(Type type, Color color) {
             try {
                 out.add(decode(part));
             } catch (RuntimeException ex) {
-                System.out.println("Pomijam zly krok petli: " + part + " (" + ex.getMessage() + ")");
+                System.out.println("Skipping bad loop step: " + part + " (" + ex.getMessage() + ")");
             }
         }
         return out;

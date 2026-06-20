@@ -3,15 +3,19 @@ package com.example.ui;
 import java.awt.AWTException;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.Robot;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
@@ -87,6 +91,10 @@ public final class TaskPanel {
         JTextField ebeX = UiUtils.num(def.apply("ebeX"));
         JTextField ebeY = UiUtils.num(def.apply("ebeY"));
         JTextField ebeColor = UiUtils.rgb(def.apply("ebeColor"));
+        // Point 14: optional LADDER_UP dialog-confirm coords (LPM). Empty = unset.
+        // The Ctrl+LPM use-click reuses loot tile 5.
+        JTextField ladderUpX = UiUtils.num(def.apply("ladderUpX"));
+        JTextField ladderUpY = UiUtils.num(def.apply("ladderUpY"));
 
         // Stable key -> field registry; bind each into the shared AppSettings.
         Map<String, JTextField> fields = new LinkedHashMap<>();
@@ -129,6 +137,8 @@ public final class TaskPanel {
         fields.put("ebeX", ebeX);
         fields.put("ebeY", ebeY);
         fields.put("ebeColor", ebeColor);
+        fields.put("ladderUpX", ladderUpX);
+        fields.put("ladderUpY", ladderUpY);
 
         for (Map.Entry<String, JTextField> e : fields.entrySet()) {
             settings.bind(prefix + e.getKey(), e.getValue());
@@ -181,8 +191,14 @@ public final class TaskPanel {
         ebe.add(UiUtils.row("X/Y:", ebeX, ebeY, "color:", ebeColor));
         coords.add(ebe);
 
+        // Point 14: optional LADDER_UP confirm coords (LPM). Only used by the
+        // LADDER_UP step; the Ctrl+LPM use-click reuses loot tile 5. Empty = skip.
+        JPanel ladderUp = UiUtils.category("14. Ladder up potw. (LPM, opcjonalne)");
+        ladderUp.add(UiUtils.row("X/Y:", ladderUpX, ladderUpY));
+        coords.add(ladderUp);
+
         // Loop generator: the user builds an ordered list of steps, each a color
-        // + type (BIEG+ATAK = walk then attack, BIEG = walk only). The list cycles
+        // + type (RUN ATTACK = walk then attack, RUN = walk only). The list cycles
         // linearly 1..N..1, so a ping-pong is just colors added in ping-pong order.
         List<PatrolStep> loopSteps = new ArrayList<>();
 
@@ -199,14 +215,17 @@ public final class TaskPanel {
                     swatch.setBackground(s.color());
                     swatch.setPreferredSize(new Dimension(18, 14));
                     String typ = switch (s.type()) {
-                        case RUN -> "BIEG";
-                        case RUN_ATTACK -> "BIEG+ATAK";
+                        case RUN -> "RUN";
+                        case RUN_ATTACK -> "RUN ATTACK";
+                        case ATTACK_ONLY -> "ATTACK IN PLACE";
                         case ROPE_DOWN -> "ROPE DOWN";
                         case LADDER_UP -> "LADDER UP";
                         case ROPE_UP -> "ROPE UP";
+                        case STAIRS -> "STAIRS";
                     };
                     String rgb = s.color().getRed() + "," + s.color().getGreen() + "," + s.color().getBlue();
-                    String info = s.isWaypoint() ? "(zolty marker)" : "(" + rgb + ")";
+                    String info = s.type() == PatrolStep.Type.ATTACK_ONLY ? "(in place)"
+                            : s.isWaypoint() ? "(yellow marker)" : "(" + rgb + ")";
                     loopList.add(UiUtils.row((i + 1) + ".", swatch, typ + "  " + info));
                 }
                 loopList.revalidate();
@@ -224,10 +243,12 @@ public final class TaskPanel {
                     });
 
             JButton addAtk = new JButton("+ RUN ATTACK");
+            JButton addAtkOnly = new JButton("+ ATTACK IN PLACE");
             JButton addRun = new JButton("+ RUN");
             JButton addRopeDown = new JButton("+ ROPE DOWN");
             JButton addLadderUp = new JButton("+ LADDER UP");
             JButton addRopeUp = new JButton("+ ROPE UP");
+            JButton addStairs = new JButton("+ STAIRS");
             JButton delLast = new JButton("DELETE LAST ONE");
             JButton clearAll = new JButton("CLEAR");
 
@@ -238,7 +259,7 @@ public final class TaskPanel {
                     loopSteps.add(PatrolStep.attack(UiUtils.parseColor(loopColor.getText())));
                     refreshLoop.run();
                 } catch (NumberFormatException ex) {
-                    System.out.println("Zly kolor - podaj R,G,B");
+                    System.out.println("Bad color - enter R,G,B");
                 }
             });
             addRun.addActionListener(e -> {
@@ -246,8 +267,13 @@ public final class TaskPanel {
                     loopSteps.add(PatrolStep.run(UiUtils.parseColor(loopColor.getText())));
                     refreshLoop.run();
                 } catch (NumberFormatException ex) {
-                    System.out.println("Zly kolor - podaj R,G,B");
+                    System.out.println("Bad color - enter R,G,B");
                 }
+            });
+            // Attack-in-place: no color needed, just a swing where we stand.
+            addAtkOnly.addActionListener(e -> {
+                loopSteps.add(PatrolStep.attackOnly());
+                refreshLoop.run();
             });
             addRopeDown.addActionListener(e -> {
                 loopSteps.add(PatrolStep.ropeDown());
@@ -261,6 +287,10 @@ public final class TaskPanel {
                 loopSteps.add(PatrolStep.ropeUp());
                 refreshLoop.run();
             });
+            addStairs.addActionListener(e -> {
+                loopSteps.add(PatrolStep.stairs());
+                refreshLoop.run();
+            });
             delLast.addActionListener(e -> {
                 if (!loopSteps.isEmpty()) {
                     loopSteps.remove(loopSteps.size() - 1);
@@ -272,10 +302,10 @@ public final class TaskPanel {
                 refreshLoop.run();
             });
 
-            // Quick-pick palette: swatch + R,G,B; clicking fills the color field.
+            // Quick-pick palette: a clickable swatch per preset; clicking fills the
+            // color field. The R,G,B value lives in the tooltip, not on the face.
             String[] palette = { "1,1,240", "227,0,15", "68,206,87", "247,148,28" };
             List<Object> palParts = new ArrayList<>();
-            palParts.add("szablony:");
             for (String rgb : palette) {
                 Color c;
                 try {
@@ -286,22 +316,28 @@ public final class TaskPanel {
                 JLabel sw = new JLabel();
                 sw.setOpaque(true);
                 sw.setBackground(c);
-                sw.setPreferredSize(new Dimension(16, 14));
-                JButton pick = new JButton(rgb);
-                pick.setMargin(new java.awt.Insets(1, 4, 1, 4));
-                pick.addActionListener(e -> loopColor.setText(rgb));
+                sw.setPreferredSize(new Dimension(22, 16));
+                sw.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+                sw.setToolTipText(rgb);
+                sw.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                sw.addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseClicked(MouseEvent e) {
+                        loopColor.setText(rgb);
+                    }
+                });
                 palParts.add(sw);
-                palParts.add(pick);
             }
 
             JPanel generator = UiUtils.verticalBox();
-            generator.add(UiUtils.row("kolor R,G,B:", loopColor, addAtk, addRun));
+            generator.add(UiUtils.row(loopColor, addAtk, addRun));
             generator.add(UiUtils.row(palParts.toArray()));
-            generator.add(UiUtils.row("zolty marker:", addRopeDown, addLadderUp, addRopeUp));
+            generator.add(UiUtils.row(addAtkOnly));
+            generator.add(UiUtils.row(addRopeDown, addLadderUp, addRopeUp, addStairs));
             generator.add(UiUtils.row(delLast, clearAll));
             generator.add(loopList);
             // Collapsible like the others, but open by default.
-            panel.add(UiUtils.collapsible("Generator route", generator, true));
+            panel.add(UiUtils.collapsible("Route generator", generator, true));
             refreshLoop.run();
         }
 
@@ -351,6 +387,7 @@ public final class TaskPanel {
                         .loot(UiUtils.parseInt(lootX), UiUtils.parseInt(lootY),
                                 UiUtils.parseColor(lootColor.getText()))
                         .lootTiles(lootTiles)
+                        .ladderPoint(UiUtils.parseOptionalPoint(ladderUpX, ladderUpY))
                         .heal(UiUtils.parseInt(healX), UiUtils.parseInt(healY),
                                 UiUtils.parseColor(healColor.getText()))
                         .telegram(token == null ? "" : token.trim(),
@@ -362,7 +399,7 @@ public final class TaskPanel {
 
                 // Drive the user-built loop. Empty list = nothing to do.
                 if (loopSteps.isEmpty()) {
-                    System.out.println("Pusta petla - dodaj kroki w generatorze (generator route).");
+                    System.out.println("Empty loop - add steps in the generator (route generator).");
                     return;
                 }
                 b.steps(new ArrayList<>(loopSteps));
@@ -381,14 +418,14 @@ public final class TaskPanel {
         startButton.addActionListener(e -> startAction.run());
         stopButton.addActionListener(e -> stopAction.run());
 
-        // Globalny STOP: srodkowy przycisk myszy z dowolnego okna (gra ma fokus, nie bot).
+        // Global STOP: middle mouse button from any window (the game has focus, not the bot).
         com.example.util.GlobalStopHotkey.install(stopAction);
         buttonPanel.add(startButton);
         buttonPanel.add(stopButton);
 
         panel.add(buttonPanel);
-        // Settings (1-13) sit below START/STOP, collapsed by default.
-        panel.add(UiUtils.collapsible("Ustawienia 1-13", coords, false));
+        // Settings (1-14) sit below START/STOP, collapsed by default.
+        panel.add(UiUtils.collapsible("Ustawienia 1-14", coords, false));
         return panel;
     }
 

@@ -55,7 +55,7 @@ public final class MainWindow {
             String token = telegramTokenField.getText().trim();
             String chatId = telegramChatIdField.getText().trim();
             System.out.println(LocalTime.now() + " Sending Telegram message");
-            TelegramClient.sendMessage(token, chatId, "wiadomosc");
+            TelegramClient.sendMessage(token, chatId, "message");
         });
         readMeButton.addActionListener(e -> ReadMeWindow.open());
 
@@ -126,12 +126,12 @@ public final class MainWindow {
         TaskPresetStore store = new TaskPresetStore();
         JPanel presetPanel = new JPanel(new BorderLayout(4, 0));
         JComboBox<String> presetBox = new JComboBox<>();
-        JButton saveButton = new JButton("Zapisz");
-        JButton deleteButton = new JButton("Usuń");
+        JButton saveButton = new JButton("Save");
+        JButton deleteButton = new JButton("Delete");
         JPanel presetButtons = new JPanel(new GridLayout(1, 2, 4, 0));
         presetButtons.add(saveButton);
         presetButtons.add(deleteButton);
-        presetPanel.add(new JLabel("Presety:"), BorderLayout.WEST);
+        presetPanel.add(new JLabel("Presets:"), BorderLayout.WEST);
         presetPanel.add(presetBox, BorderLayout.CENTER);
         presetPanel.add(presetButtons, BorderLayout.EAST);
 
@@ -156,15 +156,15 @@ public final class MainWindow {
         });
 
         saveButton.addActionListener(e -> {
-            String name = JOptionPane.showInputDialog(frame, "Nazwa ustawień:", "Zapisz preset",
+            String name = JOptionPane.showInputDialog(frame, "Settings name:", "Save preset",
                     JOptionPane.PLAIN_MESSAGE);
             if (name == null || name.trim().isEmpty()) return;
             name = name.trim();
             try {
                 store.save(name, settings.snapshot());
             } catch (IOException ex) {
-                JOptionPane.showMessageDialog(frame, "Nie udało się zapisać: " + ex.getMessage(),
-                        "Błąd", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(frame, "Could not save: " + ex.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             refreshPresets.run();
@@ -175,8 +175,8 @@ public final class MainWindow {
             Object sel = presetBox.getSelectedItem();
             if (sel == null || sel.toString().isEmpty()) return;
             String name = sel.toString();
-            int ans = JOptionPane.showConfirmDialog(frame, "Usunąć preset \"" + name + "\"?",
-                    "Usuń preset", JOptionPane.YES_NO_OPTION);
+            int ans = JOptionPane.showConfirmDialog(frame, "Delete preset \"" + name + "\"?",
+                    "Delete preset", JOptionPane.YES_NO_OPTION);
             if (ans != JOptionPane.YES_OPTION) return;
             store.delete(name);
             refreshPresets.run();

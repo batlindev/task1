@@ -49,7 +49,7 @@ public final class GlobalStopHotkey {
         try {
             GlobalScreen.registerNativeHook();
         } catch (NativeHookException ex) {
-            System.out.println("[GlobalStopHotkey] Nie udalo sie zarejestrowac globalnego hooka: "
+            System.out.println("[GlobalStopHotkey] Failed to register global hook: "
                     + ex.getMessage());
             return;
         }
@@ -58,7 +58,7 @@ public final class GlobalStopHotkey {
             @Override
             public void nativeMousePressed(NativeMouseEvent e) {
                 if (e.getButton() == STOP_BUTTON) {
-                    System.out.println("[GlobalStopHotkey] Srodkowy przycisk myszy, STOP.");
+                    System.out.println("[GlobalStopHotkey] Middle mouse button, STOP.");
                     SwingUtilities.invokeLater(onStop);
                 }
             }
@@ -75,7 +75,7 @@ public final class GlobalStopHotkey {
         }, "GlobalStopHotkey-shutdown"));
 
         installed = true;
-        System.out.println("[GlobalStopHotkey] Globalny STOP: srodkowy przycisk myszy "
-                + "(dziala z dowolnego okna).");
+        System.out.println("[GlobalStopHotkey] Global STOP: middle mouse button "
+                + "(works from any window).");
     }
 }

@@ -95,6 +95,37 @@ public final class TaskMapScanner {
         return new Point(area.x + bestX, area.y + bestY);
     }
 
+    /**
+     * Screen point of the RIGHTMOST exact-matching pixel (max x; ties broken by the
+     * one nearest the vertical center). Used by STAIRS: stairs render as an
+     * elongated yellow mark and the right end is the stair tile to step onto.
+     * {@code null} if the color is absent. One capture.
+     */
+    public Point findRightmostExact(Color target) {
+        BufferedImage img = robot.createScreenCapture(area);
+        int cy = area.height / 2;
+        int r = target.getRed();
+        int g = target.getGreen();
+        int b = target.getBlue();
+        int bestX = -1;
+        int bestY = -1;
+        for (int y = 0; y < area.height; y++) {
+            for (int x = 0; x < area.width; x++) {
+                int rgb = img.getRGB(x, y);
+                if (((rgb >> 16) & 0xFF) == r && ((rgb >> 8) & 0xFF) == g && (rgb & 0xFF) == b) {
+                    if (x > bestX || (x == bestX && Math.abs(y - cy) < Math.abs(bestY - cy))) {
+                        bestX = x;
+                        bestY = y;
+                    }
+                }
+            }
+        }
+        if (bestX < 0) {
+            return null;
+        }
+        return new Point(area.x + bestX, area.y + bestY);
+    }
+
     /** Chebyshev (king-move) distance between two screen points. */
     public static int distance(Point a, Point b) {
         return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));

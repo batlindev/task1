@@ -56,6 +56,12 @@ public final class TaskConfig {
     /** Tiles to right-click to collect loot; may be {@code null} (then skipped). */
     public final int[][] lootTiles;
 
+    /** Optional LADDER_UP confirm point (settings point 14). After Ctrl+left-click
+     *  opens the use-dialog, the bot moves here and left-clicks. {@code null} when
+     *  not configured — then the ladder step only opens the dialog and moves on.
+     *  Only ever read by the LADDER_UP step, so an unused value does nothing. */
+    public final int[] ladderPoint;
+
     /** HP pixel: drinks a potion when pixel color differs from healColor. */
     public final int healX;
     public final int healY;
@@ -90,6 +96,7 @@ public final class TaskConfig {
         this.lootY = b.lootY;
         this.lootColor = b.lootColor;
         this.lootTiles = b.lootTiles;
+        this.ladderPoint = b.ladderPoint;
         this.healX = b.healX;
         this.healY = b.healY;
         this.healColor = b.healColor;
@@ -123,6 +130,7 @@ public final class TaskConfig {
         private int lootY;
         private Color lootColor;
         private int[][] lootTiles;
+        private int[] ladderPoint;
         private int healX;
         private int healY;
         private Color healColor;
@@ -157,6 +165,9 @@ public final class TaskConfig {
         }
 
         public Builder lootTiles(int[][] tiles) { this.lootTiles = tiles; return this; }
+
+        /** Optional LADDER_UP confirm point (point 14); {@code null} = unset. */
+        public Builder ladderPoint(int[] p) { this.ladderPoint = p; return this; }
 
         public Builder heal(int x, int y, Color color) { this.healX = x; this.healY = y; this.healColor = color; return this; }
 
