@@ -2,10 +2,11 @@
 name: tak
 description: >
   This skill should be used when the user wants to create a TAK branch and PR, says "/tak",
-  "nowy TAK", "zrób TAK", "create tak branch", "open tak PR", "push as TAK", or provides
-  a type (feat/fix/chore/test/cl/refactor/docs) and title to wrap into the tak{N}/type/slug
-  branch convention with a [TAK-NNN] prefixed PR. Always invoke this skill for any request
-  that involves creating a branch in the tak{N}/type/slug pattern or a PR titled [TAK-NNN].
+  "/ready-for-title", "nowy TAK", "zrób TAK", "create tak branch", "open tak PR", "push as TAK",
+  or provides a type (feat/fix/chore/test/cl/refactor/docs) and title to wrap into the
+  tak{N}/type/slug branch convention with a [TAK-NNN] prefixed PR. Always invoke this skill
+  for any request that involves creating a branch in the tak{N}/type/slug pattern or a PR
+  titled [TAK-NNN]. Only invoke on an explicit command — never trigger it on your own.
 ---
 
 # TAK Workflow
