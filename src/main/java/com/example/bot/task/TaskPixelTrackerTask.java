@@ -99,6 +99,11 @@ public final class TaskPixelTrackerTask extends RobotTask {
 
     public TaskPixelTrackerTask(TaskConfig config) {
         this.config = config;
+        // Open the first lap on the user-chosen start card; bad index = front.
+        int start = config.startIndex;
+        if (config.steps != null && start > 0 && start < config.steps.size()) {
+            this.seqPos = start;
+        }
         this.scanner = new TaskMapScanner(robot, config.mapX, config.mapY, config.mapW, config.mapH,
                 config.colorTolerance);
     }
@@ -110,6 +115,8 @@ public final class TaskPixelTrackerTask extends RobotTask {
         }
         PatrolStep current = config.steps.get(seqPos);
         int pointNumber = seqPos + 1;
+        // Publish the live cursor so the UI can highlight the active card.
+        if (config.progress != null) config.progress.set(seqPos);
 
         switch (step) {
             case WALK:

@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -27,6 +28,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 import com.example.bot.task.TaskController;
 import com.example.config.AppSettings;
@@ -209,6 +211,11 @@ public final class TaskPanel {
         // Purely visual — consecutive steps sharing a label render inside one titled
         // box so the route reads as named stages. The bot ignores groups entirely.
         List<String> groupNames = new ArrayList<>();
+        // Card the loop starts the first lap at (click a card's body to set it).
+        // Reorder/delete keep it pinned to the same action. Default 0 = front.
+        final int[] startIdx = { 0 };
+        // Live cursor written by the running task; -1 = stopped (no yellow card).
+        final AtomicInteger activeStep = new AtomicInteger(-1);
 
         {
             JTextField loopColor = UiUtils.rgb("");
@@ -229,6 +236,10 @@ public final class TaskPanel {
                 // Keep labels aligned with steps (older presets may carry none).
                 while (groupNames.size() < loopSteps.size()) groupNames.add("");
                 while (groupNames.size() > loopSteps.size()) groupNames.remove(groupNames.size() - 1);
+                // Keep the start card in range as steps come and go.
+                if (loopSteps.isEmpty()) startIdx[0] = 0;
+                else if (startIdx[0] >= loopSteps.size()) startIdx[0] = loopSteps.size() - 1;
+                else if (startIdx[0] < 0) startIdx[0] = 0;
                 int i = 0;
                 while (i < loopSteps.size()) {
                     String g = groupNames.get(i);
@@ -237,13 +248,13 @@ public final class TaskPanel {
                         JPanel box = UiUtils.category(g);
                         int j = i;
                         while (j < loopSteps.size() && g.equals(groupNames.get(j))) {
-                            box.add(stepCard(j, loopSteps, groupNames, refresh));
+                            box.add(stepCard(j, loopSteps, groupNames, refresh, startIdx, activeStep));
                             j++;
                         }
                         loopList.add(box);
                         i = j;
                     } else {
-                        loopList.add(stepCard(i, loopSteps, groupNames, refresh));
+                        loopList.add(stepCard(i, loopSteps, groupNames, refresh, startIdx, activeStep));
                         i++;
                     }
                 }
@@ -251,12 +262,36 @@ public final class TaskPanel {
                 loopList.repaint();
             };
 
+            // Poll the live cursor; rebuild (to move the yellow highlight) only
+            // when the active step actually changes — fires every few seconds, not
+            // every tick. Runs on the EDT, so refresh is safe here.
+            final int[] lastShown = { -1 };
+            Timer cursorTimer = new Timer(150, e -> {
+                int now = activeStep.get();
+                if (now != lastShown[0]) {
+                    lastShown[0] = now;
+                    refresh[0].run();
+                }
+            });
+            cursorTimer.start();
+
             // Steps and their group labels serialize together (one preset string),
             // so they can never drift out of alignment. Default (no preset) = empty.
             settings.bindState(prefix + "loopSteps",
                     () -> encodeLoop(loopSteps, groupNames),
                     text -> {
                         decodeLoop(text, loopSteps, groupNames);
+                        refresh[0].run();
+                    });
+            // Remember which card the loop starts at across runs/presets.
+            settings.bindState(prefix + "loopStart",
+                    () -> String.valueOf(startIdx[0]),
+                    text -> {
+                        try {
+                            startIdx[0] = Integer.parseInt(text.trim());
+                        } catch (NumberFormatException ex) {
+                            startIdx[0] = 0;
+                        }
                         refresh[0].run();
                     });
 
@@ -356,6 +391,8 @@ public final class TaskPanel {
         // so detecting the ebe color does the same thing as pressing STOP TASK.
         Runnable stopAction = () -> {
             controller.stop();
+            // Clear the live cursor; the polling timer drops the yellow highlight.
+            activeStep.set(-1);
             if (watcherRef[0] != null) watcherRef[0].interrupt();
             startButton.setBackground(null);
             stopButton.setBackground(Color.RED);
@@ -406,12 +443,16 @@ public final class TaskPanel {
                     return;
                 }
                 b.steps(new ArrayList<>(loopSteps));
+                b.startIndex(startIdx[0]);
+                b.progress(activeStep);
                 config = b.build();
             } catch (NumberFormatException ex) {
                 System.out.println("Please enter valid TASK numbers.");
                 return;
             }
 
+            // Show the cursor on the start card right away (covers the countdown).
+            activeStep.set(startIdx[0]);
             controller.start(config);
             watcherRef[0] = startColorWatcher(ebeX, ebeY, ebeColor, 5000L, stopAction);
             startButton.setBackground(Color.GREEN);
@@ -437,7 +478,8 @@ public final class TaskPanel {
      * name field, and ↑/↓/✕ controls. Reorder and group edits mutate {@code steps}
      * and {@code groups} in lock-step, then call {@code refresh[0]} to rebuild.
      */
-    private static JPanel stepCard(int idx, List<PatrolStep> steps, List<String> groups, Runnable[] refresh) {
+    private static JPanel stepCard(int idx, List<PatrolStep> steps, List<String> groups, Runnable[] refresh,
+                                   int[] startIdx, AtomicInteger activeStep) {
         PatrolStep s = steps.get(idx);
 
         JLabel swatch = new JLabel();
@@ -484,6 +526,9 @@ public final class TaskPanel {
         up.addActionListener(e -> {
             Collections.swap(steps, idx, idx - 1);
             Collections.swap(groups, idx, idx - 1);
+            // Keep the start highlight on the same action as it moves.
+            if (startIdx[0] == idx) startIdx[0] = idx - 1;
+            else if (startIdx[0] == idx - 1) startIdx[0] = idx;
             refresh[0].run();
         });
         JButton down = miniBtn("↓");
@@ -491,17 +536,39 @@ public final class TaskPanel {
         down.addActionListener(e -> {
             Collections.swap(steps, idx, idx + 1);
             Collections.swap(groups, idx, idx + 1);
+            if (startIdx[0] == idx) startIdx[0] = idx + 1;
+            else if (startIdx[0] == idx + 1) startIdx[0] = idx;
             refresh[0].run();
         });
         JButton del = miniBtn("✕");
         del.addActionListener(e -> {
             steps.remove(idx);
             groups.remove(idx);
+            // Removing a card above the start shifts the start down one.
+            if (startIdx[0] > idx) startIdx[0]--;
             refresh[0].run();
         });
 
         JPanel card = UiUtils.row((idx + 1) + ".", swatch, typ + "  " + info, "grupa:", groupField, up, down, del);
         card.setBorder(BorderFactory.createLineBorder(new Color(210, 210, 210)));
+        // Clicking a card's body picks it as the loop's start; the chosen card
+        // paints a soft, see-through green. Buttons/fields keep their own clicks,
+        // so only empty card space triggers the pick. The currently-running step
+        // wins with a bright yellow over the green start mark.
+        if (idx == activeStep.get()) {
+            card.setOpaque(true);
+            card.setBackground(new Color(255, 246, 143));
+        } else if (idx == startIdx[0]) {
+            card.setOpaque(true);
+            card.setBackground(new Color(198, 239, 206));
+        }
+        card.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                startIdx[0] = idx;
+                refresh[0].run();
+            }
+        });
         return card;
     }
 

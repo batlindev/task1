@@ -2,6 +2,7 @@ package com.example.config;
 
 import java.awt.Color;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Configuration for the Task patrol routine.
@@ -36,6 +37,15 @@ public final class TaskConfig {
     /** The patrol loop: an ordered list of steps, cycled linearly 1..N..1, built
      *  by the generator panel. */
     public final List<PatrolStep> steps;
+
+    /** Index into {@link #steps} the loop begins at on START (chosen by clicking a
+     *  card in the generator). Out-of-range falls back to 0. After the first lap
+     *  it wraps as usual, so this only shifts where the very first lap opens. */
+    public final int startIndex;
+
+    /** Live cursor: the running task writes its current step index here each tick
+     *  so the UI can highlight the active card. {@code null} = no observer. */
+    public final AtomicInteger progress;
 
     /** Pixel read while attacking on a point: turns WHITE when a hit lands. */
     public final int targetX;
@@ -86,6 +96,8 @@ public final class TaskConfig {
         this.colorTolerance = b.colorTolerance;
         this.arriveThreshold = b.arriveThreshold;
         this.steps = b.steps;
+        this.startIndex = b.startIndex;
+        this.progress = b.progress;
         this.targetX = b.targetX;
         this.targetY = b.targetY;
         this.targetColor = b.targetColor;
@@ -120,6 +132,8 @@ public final class TaskConfig {
         private int colorTolerance = 10;
         private int arriveThreshold = 5;
         private List<PatrolStep> steps;
+        private int startIndex = 0;
+        private AtomicInteger progress;
         private int targetX;
         private int targetY;
         private Color targetColor;
@@ -151,6 +165,12 @@ public final class TaskConfig {
 
         /** The patrol loop, built by the generator panel. */
         public Builder steps(List<PatrolStep> steps) { this.steps = steps; return this; }
+
+        /** Index the loop starts at on the first lap; out-of-range falls back to 0. */
+        public Builder startIndex(int idx) { this.startIndex = idx; return this; }
+
+        /** Sink the running task publishes its current step index to (UI cursor). */
+        public Builder progress(AtomicInteger p) { this.progress = p; return this; }
 
         public Builder target(int x, int y, Color color) {
             this.targetX = x; this.targetY = y; this.targetColor = color; return this;

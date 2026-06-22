@@ -25,7 +25,11 @@
       "Bash(cd /home/batlin/doc/bear)",
       "Bash(pkill -f \"exec:java|com.example.Main\")",
       "Bash(export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64)",
-      "Bash(update-alternatives --list java)"
+      "Bash(update-alternatives --list java)",
+      "Bash(firefox --version)",
+      "Bash(getcap /usr/lib/snapd/snap-confine)",
+      "Bash(firefox)",
+      "Bash(javac -version)"
     ],
     "additionalDirectories": [
       "/tmp"
