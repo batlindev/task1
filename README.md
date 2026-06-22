@@ -32,6 +32,13 @@ Uninstall: `sudo dpkg -r bear`
 > Latest changes at the top.
 
 <!-- AUTO-CHANGELOG:START -->
+### 2026-06-22
+- ✨ **feat** — start pętli od wybranej akcji: klik w tło karty w generatorze trasy ustawia punkt startu (podświetlony na delikatną zieleń), pętla rusza od niego zamiast zawsze od pierwszego kroku
+- ✨ **feat** — aktualnie wykonywany krok podświetlany na żółto na liście (na żywo, na podstawie kursora bota)
+- 🐛 **fix** — wykrywanie loota po dokładnym wpisanym kolorze + logi `JEST / MA BYĆ` pokazujące realny piksel vs oczekiwany kolor (szybka diagnoza złych współrzędnych loota)
+- ♻️ **refactor** — ujednolicone logi inputów: mysz `MOUSE [L] CLICKED`, klawiatura `KEY [SPACE] PRESSED` — urządzenie widać na pierwszy rzut oka (helpery `Log.click` / `Log.key`)
+- ⚡ **perf** — log klikania w fazie walk dławiony do ~1×/s z żywym dystansem `dist=` (koniec zalewania terminala co tick)
+
 ### 2026-06-21
 - 🐛 **fix** — zbieranie loota: loot ma priorytet przed atakiem (loot-first) — po zabiciu postać najpierw zbiera loot 1-9 i nie startuje pościgu, więc prawe kliki trafiają w ciała (był problem przy chase + kilku potworach)
 - ✨ **feat** — precyzja waypointów (rope-down / ladder): jeden celny klik w żółty znacznik, potem już tylko skan do dojścia, zamiast klikania co tick (mniej rozjazdu)

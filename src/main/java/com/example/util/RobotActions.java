@@ -25,10 +25,17 @@ public final class RobotActions {
     /** Left-click, logged with a short {@code why} tag so the terminal says what
      *  the click was for (walk / waypoint / ladder / …). */
     public static void clickMouse(Robot robot, int x, int y, String why) {
+        clickMouseQuiet(robot, x, y);
+        Log.click("L", x, y, why);
+    }
+
+    /** Left-click WITHOUT logging. For inputs driven every tick (the walk-toward
+     *  auto-walk click) where the caller logs a throttled summary instead, so the
+     *  terminal is not flooded with one line per tick. */
+    public static void clickMouseQuiet(Robot robot, int x, int y) {
         robot.mouseMove(x, y);
         robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-        Log.input("CLICK L (%d,%d)%s", x, y, why.isEmpty() ? "" : " " + why);
     }
 
     /** Right-click at the given screen coordinates. */
@@ -36,20 +43,25 @@ public final class RobotActions {
         robot.mouseMove(x, y);
         robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
         robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
-        Log.input("CLICK R (%d,%d)", x, y);
+        Log.click("R", x, y, "");
     }
 
     /** Tap a key (press + release) and log it by name. */
     public static void pressKey(Robot robot, int keyCode, String name) {
+        pressKey(robot, keyCode, name, "");
+    }
+
+    /** Tap a key (press + release), logged as {@code KEY [name] PRESSED ctx}. */
+    public static void pressKey(Robot robot, int keyCode, String name, String ctx) {
         robot.keyPress(keyCode);
         robot.keyRelease(keyCode);
-        Log.input("KEY %s", name);
+        Log.key(name, ctx);
     }
 
     /** Press the eat key ("X") {@code times} times with a short randomized gap. */
     public static void eatFood(Robot robot, int times) {
         for (int i = 0; i < times; i++) {
-            pressKey(robot, KeyEvent.VK_X, "X (eat)");
+            pressKey(robot, KeyEvent.VK_X, "X", "eat");
             sleep((long) (900 + Math.random()));
         }
     }
@@ -61,7 +73,7 @@ public final class RobotActions {
     public static void healIfNeeded(Robot robot, int x, int y, Color healColor) {
         Color current = robot.getPixelColor(x, y);
         if (!current.equals(healColor)) {
-            pressKey(robot, KeyEvent.VK_C, "C (potion)");
+            pressKey(robot, KeyEvent.VK_C, "C", "potion");
         }
     }
 

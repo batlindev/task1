@@ -80,6 +80,12 @@ public final class TaskPixelTrackerTask extends RobotTask {
     // clears is visible without spamming every tick.
     private boolean waitingLogged = false;
 
+    // The walk-toward click fires every tick (~0.3s) to keep auto-walk going, but
+    // logging each one floods the terminal. Log a throttled summary (with the live
+    // distance to center) at most once per WALK_LOG_MS instead.
+    private long lastWalkLogMs = 0;
+    private static final long WALK_LOG_MS = 1000;
+
     // Human-paced timing for the click/key actions of LADDER_UP and ROPE_UP. The
     // whole sequence is spread out (settle after arrival, hold keys/buttons, settle
     // after each mouse move) so it does not fire instantly like a macro (~0.7-1s).
@@ -136,6 +142,7 @@ public final class TaskPixelTrackerTask extends RobotTask {
         lastSeenDist = Integer.MAX_VALUE;
         stalledTicks = 0;
         waitingLogged = false;
+        lastWalkLogMs = 0;
     }
 
     private void walkToward(int pointNumber, PatrolStep current) {
@@ -232,8 +239,15 @@ public final class TaskPixelTrackerTask extends RobotTask {
             advance();
             return;
         }
-        RobotActions.clickMouse(robot, mark.x, mark.y, "walk p" + pointNumber);
+        // Click every tick (auto-walk needs it) but log at most once per second,
+        // carrying the live distance so we can see whether we're closing in.
+        RobotActions.clickMouseQuiet(robot, mark.x, mark.y);
         clickedTowardCurrent = true;
+        long nowMs = System.currentTimeMillis();
+        if (nowMs - lastWalkLogMs >= WALK_LOG_MS) {
+            Log.click("olololo", mark.x, mark.y, "walk p" + pointNumber + " dist=" + dist);
+            lastWalkLogMs = nowMs;
+        }
     }
 
     /** Reached the target tile: dispatch the step's action, then advance (or
@@ -307,7 +321,7 @@ public final class TaskPixelTrackerTask extends RobotTask {
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
         RobotActions.sleep(ACTION_HOLD_MS);
         robot.keyRelease(KeyEvent.VK_CONTROL);
-        Log.input("CLICK L+Ctrl (%d,%d)", use[0], use[1]);
+        Log.click("L+CTRL", use[0], use[1], "ladder use");
 
         int[] p = config.ladderPoint;
         if (p == null) {
@@ -319,7 +333,7 @@ public final class TaskPixelTrackerTask extends RobotTask {
         robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
         RobotActions.sleep(ACTION_HOLD_MS);
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-        Log.input("CLICK L (%d,%d)", p[0], p[1]);
+        Log.click("L", p[0], p[1], "ladder confirm");
     }
 
 
@@ -338,14 +352,14 @@ public final class TaskPixelTrackerTask extends RobotTask {
         robot.keyPress(KeyEvent.VK_V);
         RobotActions.sleep(ACTION_HOLD_MS);
         robot.keyRelease(KeyEvent.VK_V);
-        Log.input("KEY V (rope)");
+        Log.key("V", "rope");
         RobotActions.sleep(ACTION_DIALOG_MS);
         robot.mouseMove(t[0], t[1]);
         RobotActions.sleep(ACTION_MOVE_SETTLE_MS);
         robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
         RobotActions.sleep(ACTION_HOLD_MS);
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-        Log.input("CLICK L (%d,%d)", t[0], t[1]);
+        Log.click("L", t[0], t[1], "rope");
     }
 
     private void attackIfNeeded(int pointNumber) {
@@ -367,7 +381,7 @@ public final class TaskPixelTrackerTask extends RobotTask {
 
         if (current.equals(Color.WHITE)) {
             // A monster is targeted on the attack tile and no loot is waiting → swing.
-            RobotActions.pressKey(robot, KeyEvent.VK_SPACE, "SPACE (attack)");
+            RobotActions.pressKey(robot, KeyEvent.VK_SPACE, "SPACE", "attack");
             waitingLogged = false;
             if (config.telegramOnAttack) {
                 TelegramClient.sendMessage(config.telegramToken, config.telegramChatId, "task attack");
@@ -392,18 +406,30 @@ public final class TaskPixelTrackerTask extends RobotTask {
             // Neither a monster on the target pixel nor the "cleared" ground color.
             // Log the two pixels ONCE so a stuck point (clear never detected) is
             // visible without spamming every tick.
-            Log.action("p%d waiting: target=(%d,%d,%d) white?=no | robak=(%d,%d,%d) need=(%d,%d,%d)",
+            Color lootPx = robot.getPixelColor(config.lootX, config.lootY);
+            Log.action("p%d waiting: target=(%d,%d,%d) white?=no | robak=(%d,%d,%d) need=(%d,%d,%d) | loot=(%d,%d,%d) need=(%d,%d,%d) tol=%d",
                     pointNumber,
                     current.getRed(), current.getGreen(), current.getBlue(),
                     robak.getRed(), robak.getGreen(), robak.getBlue(),
-                    config.robakColor.getRed(), config.robakColor.getGreen(), config.robakColor.getBlue());
+                    config.robakColor.getRed(), config.robakColor.getGreen(), config.robakColor.getBlue(),
+                    lootPx.getRed(), lootPx.getGreen(), lootPx.getBlue(),
+                    config.lootColor.getRed(), config.lootColor.getGreen(), config.lootColor.getBlue(),
+                    config.colorTolerance);
             waitingLogged = true;
         }
     }
 
-    /** True while the loot indicator pixel reads {@code lootColor} (loot waiting). */
+    /** True while the loot indicator pixel reads {@code lootColor} exactly
+     *  (the typed color must match on the nose — no tolerance). */
     private boolean lootPresent() {
-        return robot.getPixelColor(config.lootX, config.lootY).equals(config.lootColor);
+        Color px = robot.getPixelColor(config.lootX, config.lootY);
+        boolean hit = px.equals(config.lootColor);
+        Log.action("loot pixel @(%d,%d): JEST=(%d,%d,%d) MA BYĆ=(%d,%d,%d) -> %s",
+                config.lootX, config.lootY,
+                px.getRed(), px.getGreen(), px.getBlue(),
+                config.lootColor.getRed(), config.lootColor.getGreen(), config.lootColor.getBlue(),
+                hit ? "MATCH" : "BRAK");
+        return hit;
     }
 
     /**
@@ -414,6 +440,9 @@ public final class TaskPixelTrackerTask extends RobotTask {
     private void grabLootIfPresent(int pointNumber) {
         Color loot = robot.getPixelColor(config.lootX, config.lootY);
         if (!loot.equals(config.lootColor)) {
+            Log.action("grabLoot SKIP p%d: JEST=(%d,%d,%d) MA BYĆ=(%d,%d,%d)", pointNumber,
+                    loot.getRed(), loot.getGreen(), loot.getBlue(),
+                    config.lootColor.getRed(), config.lootColor.getGreen(), config.lootColor.getBlue());
             return;
         }
         Log.action("p%d LOOT", pointNumber);
