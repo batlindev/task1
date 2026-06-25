@@ -11,8 +11,13 @@ import java.util.List;
  * user-picked {@code color} on the minimap. Waypoint steps ({@code ROPE_DOWN},
  * {@code LADDER_UP}, {@code ROPE_UP}) walk to the nearest {@link #WAYPOINT}
  * (yellow) marker and then perform a rope/ladder action.
+ *
+ * <p>{@code far} flips a waypoint step to target the FARTHEST yellow marker
+ * instead of the nearest (or, for STAIRS, instead of the rightmost). Used when
+ * two yellow markers sit side by side and we want the one further from the
+ * player. No effect on color steps.
  */
-public record PatrolStep(Type type, Color color) {
+public record PatrolStep(Type type, Color color, boolean far) {
 
     /** Minimap marker color of rope/ladder squares: pure yellow. */
     public static final Color WAYPOINT = new Color(255, 255, 0);
@@ -37,20 +42,29 @@ public record PatrolStep(Type type, Color color) {
         STAIRS
     }
 
-    public static PatrolStep run(Color c) { return new PatrolStep(Type.RUN, c); }
+    public static PatrolStep run(Color c) { return new PatrolStep(Type.RUN, c, false); }
 
-    public static PatrolStep attack(Color c) { return new PatrolStep(Type.RUN_ATTACK, c); }
+    public static PatrolStep attack(Color c) { return new PatrolStep(Type.RUN_ATTACK, c, false); }
 
     /** Attack-in-place: no color is walked to, so the color is a placeholder. */
-    public static PatrolStep attackOnly() { return new PatrolStep(Type.ATTACK_ONLY, WAYPOINT); }
+    public static PatrolStep attackOnly() { return new PatrolStep(Type.ATTACK_ONLY, WAYPOINT, false); }
 
-    public static PatrolStep ropeDown() { return new PatrolStep(Type.ROPE_DOWN, WAYPOINT); }
+    public static PatrolStep ropeDown() { return new PatrolStep(Type.ROPE_DOWN, WAYPOINT, false); }
 
-    public static PatrolStep ladderUp() { return new PatrolStep(Type.LADDER_UP, WAYPOINT); }
+    public static PatrolStep ladderUp() { return new PatrolStep(Type.LADDER_UP, WAYPOINT, false); }
 
-    public static PatrolStep ropeUp() { return new PatrolStep(Type.ROPE_UP, WAYPOINT); }
+    public static PatrolStep ropeUp() { return new PatrolStep(Type.ROPE_UP, WAYPOINT, false); }
 
-    public static PatrolStep stairs() { return new PatrolStep(Type.STAIRS, WAYPOINT); }
+    public static PatrolStep stairs() { return new PatrolStep(Type.STAIRS, WAYPOINT, false); }
+
+    /** Waypoint variants that head for the FARTHEST yellow marker, not the nearest. */
+    public static PatrolStep ropeDownFar() { return new PatrolStep(Type.ROPE_DOWN, WAYPOINT, true); }
+
+    public static PatrolStep ladderUpFar() { return new PatrolStep(Type.LADDER_UP, WAYPOINT, true); }
+
+    public static PatrolStep ropeUpFar() { return new PatrolStep(Type.ROPE_UP, WAYPOINT, true); }
+
+    public static PatrolStep stairsFar() { return new PatrolStep(Type.STAIRS, WAYPOINT, true); }
 
     /** Yellow-marker steps locate the nearest marker to center, not a centroid. */
     public boolean isWaypoint() {
@@ -64,7 +78,7 @@ public record PatrolStep(Type type, Color color) {
      */
     public String encode() {
         if (isWaypoint() || type == Type.ATTACK_ONLY) {
-            return type.name();
+            return far ? type.name() + "_FAR" : type.name();
         }
         return type.name() + ":" + color.getRed() + "," + color.getGreen() + "," + color.getBlue();
     }
@@ -74,23 +88,29 @@ public record PatrolStep(Type type, Color color) {
         String s = token.trim();
         int colon = s.indexOf(':');
         String head = colon < 0 ? s : s.substring(0, colon);
+        // "_FAR" suffix flags the farthest-yellow waypoint variant. No base type
+        // name ends in _FAR, so stripping it is unambiguous.
+        boolean far = head.endsWith("_FAR");
+        if (far) {
+            head = head.substring(0, head.length() - "_FAR".length());
+        }
         if (head.equals("SCHODY")) {        // legacy token: STAIRS used to be named SCHODY
-            return stairs();
+            return far ? stairsFar() : stairs();
         }
         Type t = Type.valueOf(head);
         switch (t) {
             case ROPE_DOWN:
-                return ropeDown();
+                return far ? ropeDownFar() : ropeDown();
             case LADDER_UP:
-                return ladderUp();
+                return far ? ladderUpFar() : ladderUp();
             case ROPE_UP:
-                return ropeUp();
+                return far ? ropeUpFar() : ropeUp();
             case ATTACK_ONLY:
                 return attackOnly();
             case STAIRS:
-                return stairs();
+                return far ? stairsFar() : stairs();
             default:
-                return new PatrolStep(t, parseColor(s.substring(colon + 1)));
+                return new PatrolStep(t, parseColor(s.substring(colon + 1)), false);
         }
     }
 

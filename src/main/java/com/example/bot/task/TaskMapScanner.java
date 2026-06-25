@@ -126,6 +126,47 @@ public final class TaskMapScanner {
         return new Point(area.x + bestX, area.y + bestY);
     }
 
+    /**
+     * Screen point of the exact-matching pixel FARTHEST from the minimap center
+     * (max Chebyshev distance), or {@code null} if none is visible. Mirror of
+     * {@link #findNearestExact}: used by the "_FAR" waypoint variants when two
+     * yellow markers sit side by side (e.g. one passage-up next to another) and
+     * we want the farther one. Ties break toward the RIGHTMOST pixel (then the
+     * one nearest the vertical center) — so STAIRS_FAR lands on the right end of
+     * the farther stair mark, matching {@link #findRightmostExact}.
+     */
+    public Point findFarthestExact(Color target) {
+        BufferedImage img = robot.createScreenCapture(area);
+        int cx = area.width / 2;
+        int cy = area.height / 2;
+        int bestDist = -1;
+        int bestX = -1;
+        int bestY = -1;
+        for (int y = 0; y < area.height; y++) {
+            for (int x = 0; x < area.width; x++) {
+                int rgb = img.getRGB(x, y);
+                int r = (rgb >> 16) & 0xFF;
+                int g = (rgb >> 8) & 0xFF;
+                int b = rgb & 0xFF;
+                if (r == target.getRed() && g == target.getGreen() && b == target.getBlue()) {
+                    int d = Math.max(Math.abs(x - cx), Math.abs(y - cy));
+                    boolean better = d > bestDist
+                            || (d == bestDist && x > bestX)
+                            || (d == bestDist && x == bestX && Math.abs(y - cy) < Math.abs(bestY - cy));
+                    if (better) {
+                        bestDist = d;
+                        bestX = x;
+                        bestY = y;
+                    }
+                }
+            }
+        }
+        if (bestX < 0) {
+            return null;
+        }
+        return new Point(area.x + bestX, area.y + bestY);
+    }
+
     /** Chebyshev (king-move) distance between two screen points. */
     public static int distance(Point a, Point b) {
         return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));

@@ -302,6 +302,11 @@ public final class TaskPanel {
             JButton addLadderUp = new JButton("+ LADDER UP");
             JButton addRopeUp = new JButton("+ ROPE UP");
             JButton addStairs = new JButton("+ STAIRS");
+            // "FAR" variants: head for the farther of two side-by-side yellow markers.
+            JButton addRopeDownFar = new JButton("+ ROPE DOWN FAR");
+            JButton addLadderUpFar = new JButton("+ LADDER UP FAR");
+            JButton addRopeUpFar = new JButton("+ ROPE UP FAR");
+            JButton addStairsFar = new JButton("+ STAIRS FAR");
             JButton delLast = new JButton("DELETE LAST ONE");
             JButton clearAll = new JButton("CLEAR");
 
@@ -327,6 +332,10 @@ public final class TaskPanel {
             addLadderUp.addActionListener(e -> addStep.accept(PatrolStep.ladderUp()));
             addRopeUp.addActionListener(e -> addStep.accept(PatrolStep.ropeUp()));
             addStairs.addActionListener(e -> addStep.accept(PatrolStep.stairs()));
+            addRopeDownFar.addActionListener(e -> addStep.accept(PatrolStep.ropeDownFar()));
+            addLadderUpFar.addActionListener(e -> addStep.accept(PatrolStep.ladderUpFar()));
+            addRopeUpFar.addActionListener(e -> addStep.accept(PatrolStep.ropeUpFar()));
+            addStairsFar.addActionListener(e -> addStep.accept(PatrolStep.stairsFar()));
             delLast.addActionListener(e -> {
                 if (!loopSteps.isEmpty()) {
                     loopSteps.remove(loopSteps.size() - 1);
@@ -372,6 +381,7 @@ public final class TaskPanel {
             generator.add(UiUtils.row(palParts.toArray()));
             generator.add(UiUtils.row(addAtkOnly));
             generator.add(UiUtils.row(addRopeDown, addLadderUp, addRopeUp, addStairs));
+            generator.add(UiUtils.row(addRopeDownFar, addLadderUpFar, addRopeUpFar, addStairsFar));
             generator.add(UiUtils.row(delLast, clearAll));
             generator.add(loopList);
             // Collapsible like the others, but open by default.
@@ -497,6 +507,9 @@ public final class TaskPanel {
             case ROPE_UP -> "ROPE UP";
             case STAIRS -> "STAIRS";
         };
+        if (s.far()) {
+            typ += " FAR";
+        }
         String rgb = s.color().getRed() + "," + s.color().getGreen() + "," + s.color().getBlue();
         String info = s.type() == PatrolStep.Type.ATTACK_ONLY ? "(in place)"
                 : s.isWaypoint() ? "(yellow)" : "(" + rgb + ")";

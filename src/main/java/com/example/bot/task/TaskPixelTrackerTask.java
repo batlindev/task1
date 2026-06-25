@@ -53,6 +53,16 @@ public final class TaskPixelTrackerTask extends RobotTask {
     private int stalledTicks = 0;
     private static final int STALL_GIVEUP_TICKS = 8;
 
+    // Consecutive WALK ticks where the mark is NOT visible at all (color/marker
+    // absent from the minimap, or it scrolled off and never came back). The
+    // stall counter above only fires once a mark is found but unreachable; this
+    // one covers "the color simply isn't there" — without it the bot waits
+    // forever for a mark that never appears. After this many not-found ticks we
+    // skip the step, same as a block. Larger than STALL so a brief scroll-off
+    // mid-walk doesn't trip it.
+    private int notFoundTicks = 0;
+    private static final int NOTFOUND_GIVEUP_TICKS = 14;
+
     // "Cross is on the marker tile" distance (minimap px). The white cross is
     // always at minimap center; a yellow marker sitting within this many px of
     // center means we stand ON its tile (1px is just render rounding). Kept TIGHT
@@ -141,6 +151,7 @@ public final class TaskPixelTrackerTask extends RobotTask {
         clickedTowardCurrent = false;
         lastSeenDist = Integer.MAX_VALUE;
         stalledTicks = 0;
+        notFoundTicks = 0;
         waitingLogged = false;
         lastWalkLogMs = 0;
     }
@@ -159,7 +170,14 @@ public final class TaskPixelTrackerTask extends RobotTask {
         // rope/ladder markers: the one nearest center (exact match). Color marks:
         // centroid with the configured tolerance.
         Point mark;
-        if (current.type() == PatrolStep.Type.STAIRS) {
+        if (current.isWaypoint() && current.far() && !clickedTowardCurrent) {
+            // "_FAR" variant, FIRST tick only: of two side-by-side yellow markers,
+            // pick the farther and click it. After that we switch to nearest (below):
+            // as we walk onto the chosen marker it slides toward center and becomes
+            // the nearest, while the other recedes — so tracking "farthest" every
+            // tick would flip the target to the wrong marker and arrival never fires.
+            mark = scanner.findFarthestExact(target);
+        } else if (current.type() == PatrolStep.Type.STAIRS) {
             mark = scanner.findRightmostExact(target);
         } else if (current.isWaypoint()) {
             mark = scanner.findNearestExact(target);
@@ -181,12 +199,20 @@ public final class TaskPixelTrackerTask extends RobotTask {
                 if (lastSeenDist <= arrivePx + VANISH_ARRIVE_SLACK) {
                     Log.action("p%d mark vanished (dist=%d) → ARRIVED", pointNumber, lastSeenDist);
                     onArrived(pointNumber, current);
+                    return;
                 }
-                // else: vanished while far = scrolled off minimap, keep waiting (no log).
-                return;
+                // else: vanished while far = scrolled off minimap. Fall through to
+                // the not-found timeout so a mark that never comes back is skipped.
+            }
+            // Mark not visible this tick. If it stays absent (color simply isn't
+            // there, or it left the minimap for good), skip the step like a block.
+            if (++notFoundTicks >= NOTFOUND_GIVEUP_TICKS) {
+                Log.action("p%d mark not found (%d ticks) → skip to next", pointNumber, notFoundTicks);
+                advance();
             }
             return;
         }
+        notFoundTicks = 0;
 
         int dist = TaskMapScanner.distance(mark, center);
         int prevDist = lastSeenDist;
